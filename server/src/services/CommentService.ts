@@ -169,59 +169,70 @@ export class CommentService extends BaseService {
       }
     }
 
-    await this.db.update(schema.comments).set({
-      isWinner: 1,
-      winnerSelectedAt: sql`NOW()`,
-      winnerSelectedBy: ctx.userId,
-    }).where(eq(schema.comments.id, commentId))
+    let task: any
+    let newTaskStatus = ''
+    let allCompleted = false
+    let activeCount = 0
+    let completedCount = 0
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.comments).set({
+        isWinner: 1,
+        winnerSelectedAt: sql`NOW()`,
+        winnerSelectedBy: ctx.userId,
+      }).where(eq(schema.comments.id, commentId))
 
-    await this.db.update(schema.subtasks).set({
-      status: 'completed',
-      winnerCommentId: commentId,
-    }).where(eq(schema.subtasks.id, subtask.id))
+      await tx.update(schema.subtasks).set({
+        status: 'completed',
+        winnerCommentId: commentId,
+      }).where(eq(schema.subtasks.id, subtask.id))
 
-    const [task] = await this.db
-      .select({
-        id: schema.tasks.id,
-        projectId: schema.tasks.projectId,
-        title: schema.tasks.title,
-        projectTitle: schema.projects.title,
+      const [t] = await tx
+        .select({
+          id: schema.tasks.id,
+          projectId: schema.tasks.projectId,
+          title: schema.tasks.title,
+          projectTitle: schema.projects.title,
+        })
+        .from(schema.tasks)
+        .innerJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
+        .where(eq(schema.tasks.id, subtask.taskId))
+        .limit(1)
+      task = t
+
+      const statusCounts = await tx
+        .select({
+          activeCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} IN ('open', 'completed') THEN 1 END)`,
+          completedCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} = 'completed' THEN 1 END)`,
+        })
+        .from(schema.subtasks)
+        .where(eq(schema.subtasks.taskId, subtask.taskId))
+
+      activeCount = Number(statusCounts[0]?.activeCount || 0)
+      completedCount = Number(statusCounts[0]?.completedCount || 0)
+
+      if (activeCount === 0 || activeCount === completedCount) newTaskStatus = 'completed'
+      else newTaskStatus = 'in_progress'
+
+      if (task && task.id) {
+        await tx.update(schema.tasks).set({ status: newTaskStatus }).where(eq(schema.tasks.id, task.id))
+      }
+
+      const allTasks = await tx
+        .select({ status: schema.tasks.status })
+        .from(schema.tasks)
+        .where(eq(schema.tasks.projectId, task.projectId))
+      allCompleted = allTasks.length > 0 && allTasks.every((t: { status: string }) => t.status === 'completed')
+
+      if (task && allCompleted) {
+        await tx.update(schema.projects).set({ status: 'completed' }).where(eq(schema.projects.id, task.projectId))
+      }
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'select_winner',
+        details: `رشّح ${ctx.userName} تعليقاً فائزاً في "${subtask.title}"`,
       })
-      .from(schema.tasks)
-      .innerJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
-      .where(eq(schema.tasks.id, subtask.taskId))
-      .limit(1)
-
-    const statusCounts = await this.db
-      .select({
-        activeCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} IN ('open', 'completed') THEN 1 END)`,
-        completedCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} = 'completed' THEN 1 END)`,
-      })
-      .from(schema.subtasks)
-      .where(eq(schema.subtasks.taskId, subtask.taskId))
-
-    const activeCount = Number(statusCounts[0]?.activeCount || 0)
-    const completedCount = Number(statusCounts[0]?.completedCount || 0)
-
-    let newTaskStatus: string
-    if (activeCount === 0 || activeCount === completedCount) newTaskStatus = 'completed'
-    else newTaskStatus = 'in_progress'
-
-    if (task && task.id) {
-      await this.db.update(schema.tasks).set({ status: newTaskStatus }).where(eq(schema.tasks.id, task.id))
-    }
-
-    const allTasks = await this.db
-      .select({ status: schema.tasks.status })
-      .from(schema.tasks)
-      .where(eq(schema.tasks.projectId, task.projectId))
-    const allCompleted = allTasks.length > 0 && allTasks.every((t: { status: string }) => t.status === 'completed')
-
-    if (task && allCompleted) {
-      await this.db.update(schema.projects).set({ status: 'completed' }).where(eq(schema.projects.id, task.projectId))
-    }
-
-    await addActivityLog(ctx.userId, 'select_winner', `رشّح ${ctx.userName} تعليقاً فائزاً في "${subtask.title}"`)
+    })
 
     if (ctx.io) {
       ctx.io.emit('comment:winner-selected', { commentId: Number(commentId), subtaskId: subtask.id })

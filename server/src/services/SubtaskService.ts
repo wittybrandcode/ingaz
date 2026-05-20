@@ -18,8 +18,8 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 export class SubtaskService extends BaseService {
-  private async getTaskCounts(taskId: number) {
-    const [row] = await this.db
+  private async getTaskCounts(taskId: number, tx: any = this.db) {
+    const [row] = await tx
       .select({
         activeCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} IN ('open', 'completed') THEN 1 END)`,
         completedCount: sql`COUNT(CASE WHEN ${schema.subtasks.status} = 'completed' THEN 1 END)`,
@@ -32,24 +32,24 @@ export class SubtaskService extends BaseService {
     }
   }
 
-  private async calculateTaskStatus(taskId: number): Promise<string> {
-    const counts = await this.getTaskCounts(taskId)
+  private async calculateTaskStatus(taskId: number, tx: any = this.db): Promise<string> {
+    const counts = await this.getTaskCounts(taskId, tx)
     if (counts.active_count === 0) return 'completed'
     if (counts.active_count === counts.completed_count) return 'completed'
     if (counts.completed_count > 0) return 'in_progress'
     return 'open'
   }
 
-  private async updateTaskStatus(taskId: number, ctx: ServiceContext) {
-    const newStatus = await this.calculateTaskStatus(taskId)
-    const [task] = await this.db
+  private async updateTaskStatus(taskId: number, ctx: ServiceContext, tx: any = this.db) {
+    const newStatus = await this.calculateTaskStatus(taskId, tx)
+    const [task] = await tx
       .select({ status: schema.tasks.status })
       .from(schema.tasks)
       .where(eq(schema.tasks.id, taskId))
       .limit(1)
     if (task && task.status !== newStatus) {
-      await this.db.update(schema.tasks).set({ status: newStatus }).where(eq(schema.tasks.id, taskId))
-      const counts = await this.getTaskCounts(taskId)
+      await tx.update(schema.tasks).set({ status: newStatus }).where(eq(schema.tasks.id, taskId))
+      const counts = await this.getTaskCounts(taskId, tx)
       if (ctx.io) {
         ctx.io.emit('list:update', {
           type: 'task',
@@ -61,8 +61,8 @@ export class SubtaskService extends BaseService {
     return newStatus
   }
 
-  private async calculateProjectStatus(projectId: number): Promise<string> {
-    const tasks = await this.db
+  private async calculateProjectStatus(projectId: number, tx: any = this.db): Promise<string> {
+    const tasks = await tx
       .select({ status: schema.tasks.status })
       .from(schema.tasks)
       .where(eq(schema.tasks.projectId, projectId))
@@ -70,15 +70,15 @@ export class SubtaskService extends BaseService {
     return 'active'
   }
 
-  private async updateProjectStatus(projectId: number, ctx: ServiceContext) {
-    const newStatus = await this.calculateProjectStatus(projectId)
-    const [project] = await this.db
+  private async updateProjectStatus(projectId: number, ctx: ServiceContext, tx: any = this.db) {
+    const newStatus = await this.calculateProjectStatus(projectId, tx)
+    const [project] = await tx
       .select({ status: schema.projects.status })
       .from(schema.projects)
       .where(eq(schema.projects.id, projectId))
       .limit(1)
     if (project && project.status !== newStatus) {
-      await this.db.update(schema.projects).set({ status: newStatus }).where(eq(schema.projects.id, projectId))
+      await tx.update(schema.projects).set({ status: newStatus }).where(eq(schema.projects.id, projectId))
       if (ctx.io) {
         ctx.io.emit('list:update', {
           type: 'project',
@@ -335,21 +335,52 @@ export class SubtaskService extends BaseService {
 
     if (Object.keys(updates).length === 0) throw new AppError(400, 'لا توجد حقول للتحديث')
 
-    await this.db.update(schema.subtasks).set(updates).where(eq(schema.subtasks.id, id))
+    let subtask: any
+    let task: any
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.subtasks).set(updates).where(eq(schema.subtasks.id, id))
 
-    const [subtask] = await this.db.select().from(schema.subtasks).where(eq(schema.subtasks.id, id)).limit(1)
+      const [s] = await tx.select().from(schema.subtasks).where(eq(schema.subtasks.id, id)).limit(1)
+      subtask = s
 
-    const [task] = await this.db
-      .select({
-        id: schema.tasks.id,
-        projectId: schema.tasks.projectId,
-        title: schema.tasks.title,
-        projectTitle: schema.projects.title,
+      const [t] = await tx
+        .select({
+          id: schema.tasks.id,
+          projectId: schema.tasks.projectId,
+          title: schema.tasks.title,
+          projectTitle: schema.projects.title,
+        })
+        .from(schema.tasks)
+        .innerJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
+        .where(eq(schema.tasks.id, subtask.taskId))
+        .limit(1)
+      task = t
+
+      if (data.status && data.status !== oldSubtask.status) {
+        const logActions: Record<string, string> = {
+          completed: 'complete_subtask',
+          cancelled: 'cancel_subtask',
+          deferred: 'defer_subtask',
+        }
+        if (logActions[data.status]) {
+          const actionName = logActions[data.status] === 'complete_subtask' ? 'أكمل' : logActions[data.status] === 'cancel_subtask' ? 'ألغى' : 'أجل'
+          await tx.insert(schema.activityLogs).values({
+            userId: ctx.userId,
+            action: logActions[data.status],
+            details: actionName + ' "' + subtask.title + '"',
+          })
+        }
+
+        await this.updateTaskStatus(task.id, ctx, tx)
+        await this.updateProjectStatus(task.projectId, ctx, tx)
+      }
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'update_subtask',
+        details: `حدّث مهمة فرعية "${subtask.title}"`,
       })
-      .from(schema.tasks)
-      .innerJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
-      .where(eq(schema.tasks.id, subtask.taskId))
-      .limit(1)
+    })
 
     if (data.status && data.status !== oldSubtask.status) {
       if (data.status === 'cancelled' || data.status === 'deferred' || data.status === 'completed') {
@@ -401,22 +432,9 @@ export class SubtaskService extends BaseService {
         }
       }
 
-      const logActions: Record<string, string> = {
-        completed: 'complete_subtask',
-        cancelled: 'cancel_subtask',
-        deferred: 'defer_subtask',
-      }
-      if (logActions[data.status]) {
-        const actionName = logActions[data.status] === 'complete_subtask' ? 'أكمل' : logActions[data.status] === 'cancel_subtask' ? 'ألغى' : 'أجل'
-        await addActivityLog(ctx.userId, logActions[data.status], actionName + ' "' + subtask.title + '"')
-      }
-
       if (ctx.io) {
         ctx.io.emit('subtask:updated', { id: Number(id), status: subtask.status, winner_comment_id: subtask.winnerCommentId })
       }
-
-      await this.updateTaskStatus(task.id, ctx)
-      await this.updateProjectStatus(task.projectId, ctx)
     }
 
     if (data.assigned_to !== undefined && data.assigned_to !== oldSubtask?.assignedTo) {
@@ -438,7 +456,6 @@ export class SubtaskService extends BaseService {
       }
     }
 
-    await addActivityLog(ctx.userId, 'update_subtask', `حدّث مهمة فرعية "${subtask.title}"`)
     return subtask
   }
 
@@ -462,28 +479,36 @@ export class SubtaskService extends BaseService {
       const fp = path.join(process.cwd(), 'uploads', a.filename)
       if (fs.existsSync(fp)) fs.unlinkSync(fp)
     }
-    await this.db
-      .delete(schema.attachments)
-      .where(
-        and(
-          eq(schema.attachments.entityType, 'subtask'),
-          eq(schema.attachments.entityId, id),
+    await this.db.transaction(async (tx: any) => {
+      await tx
+        .delete(schema.attachments)
+        .where(
+          and(
+            eq(schema.attachments.entityType, 'subtask'),
+            eq(schema.attachments.entityId, id),
+          )
         )
-      )
 
-    await addActivityLog(ctx.userId, 'delete_subtask', `حذف مهمة فرعية "${old?.title}"`)
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'delete_subtask',
+        details: `حذف مهمة فرعية "${old?.title}"`,
+      })
+
+      await tx.delete(schema.subtasks).where(eq(schema.subtasks.id, id))
+
+      if (old) {
+        await this.updateTaskStatus(old.taskId, ctx, tx)
+        const [task] = await tx
+          .select({ projectId: schema.tasks.projectId })
+          .from(schema.tasks)
+          .where(eq(schema.tasks.id, old.taskId))
+          .limit(1)
+        if (task) await this.updateProjectStatus(task.projectId, ctx, tx)
+      }
+    })
+
     if (ctx.io) ctx.io.emit('list:update', { type: 'subtask', action: 'deleted', data: { id: Number(id) } })
-    await this.db.delete(schema.subtasks).where(eq(schema.subtasks.id, id))
-
-    if (old) {
-      await this.updateTaskStatus(old.taskId, ctx)
-      const [task] = await this.db
-        .select({ projectId: schema.tasks.projectId })
-        .from(schema.tasks)
-        .where(eq(schema.tasks.id, old.taskId))
-        .limit(1)
-      if (task) await this.updateProjectStatus(task.projectId, ctx)
-    }
 
     return { message: 'تم حذف المهمة الفرعية' }
   }
@@ -502,21 +527,27 @@ export class SubtaskService extends BaseService {
       if (!userRow) throw new AppError(404, 'المستخدم غير موجود')
       if (userRow.roleId !== ROLES.EMPLOYEE) throw new AppError(400, 'يمكن تكليف المستخدمين بصلاحية موظف فقط')
 
-      const [assignee] = await this.db.insert(schema.subtaskAssignees).values({
-        subtaskId,
-        userId,
-        assignedBy: ctx.userId,
-      }).returning()
+      let assignee: any
+      let subtask: any
+      await this.db.transaction(async (tx: any) => {
+        const [a] = await tx.insert(schema.subtaskAssignees).values({
+          subtaskId,
+          userId,
+          assignedBy: ctx.userId,
+        }).returning()
+        assignee = a
 
-      const [subtask] = await this.db
-        .select({ assignedTo: schema.subtasks.assignedTo, title: schema.subtasks.title })
-        .from(schema.subtasks)
-        .where(eq(schema.subtasks.id, subtaskId))
-        .limit(1)
+        const [s] = await tx
+          .select({ assignedTo: schema.subtasks.assignedTo, title: schema.subtasks.title })
+          .from(schema.subtasks)
+          .where(eq(schema.subtasks.id, subtaskId))
+          .limit(1)
+        subtask = s
 
-      if (subtask && !subtask.assignedTo) {
-        await this.db.update(schema.subtasks).set({ assignedTo: userId }).where(eq(schema.subtasks.id, subtaskId))
-      }
+        if (subtask && !subtask.assignedTo) {
+          await tx.update(schema.subtasks).set({ assignedTo: userId }).where(eq(schema.subtasks.id, subtaskId))
+        }
+      })
 
       const [enriched] = await this.db
         .select({
@@ -570,25 +601,27 @@ export class SubtaskService extends BaseService {
       .where(eq(schema.subtasks.id, subtaskId))
       .limit(1)
 
-    const result = await this.db
-      .delete(schema.subtaskAssignees)
-      .where(
-        and(
-          eq(schema.subtaskAssignees.subtaskId, subtaskId),
-          eq(schema.subtaskAssignees.userId, userId),
+    await this.db.transaction(async (tx: any) => {
+      const result = await tx
+        .delete(schema.subtaskAssignees)
+        .where(
+          and(
+            eq(schema.subtaskAssignees.subtaskId, subtaskId),
+            eq(schema.subtaskAssignees.userId, userId),
+          )
         )
-      )
-    if (result.length === 0) throw new AppError(404, 'المكلف غير موجود')
+      if (result.length === 0) throw new AppError(404, 'المكلف غير موجود')
 
-    if (subtask && subtask.assignedTo === userId) {
-      const [remaining] = await this.db
-        .select({ userId: schema.subtaskAssignees.userId })
-        .from(schema.subtaskAssignees)
-        .where(eq(schema.subtaskAssignees.subtaskId, subtaskId))
-        .orderBy(schema.subtaskAssignees.createdAt)
-        .limit(1)
-      await this.db.update(schema.subtasks).set({ assignedTo: remaining?.userId || null }).where(eq(schema.subtasks.id, subtaskId))
-    }
+      if (subtask && subtask.assignedTo === userId) {
+        const [remaining] = await tx
+          .select({ userId: schema.subtaskAssignees.userId })
+          .from(schema.subtaskAssignees)
+          .where(eq(schema.subtaskAssignees.subtaskId, subtaskId))
+          .orderBy(schema.subtaskAssignees.createdAt)
+          .limit(1)
+        await tx.update(schema.subtasks).set({ assignedTo: remaining?.userId || null }).where(eq(schema.subtasks.id, subtaskId))
+      }
+    })
 
     if (ctx.io) {
       notifyUser({

@@ -146,6 +146,20 @@ export function createTestDb() {
 
   const db = drizzle(sqliteDb)
 
+  // Patch transaction to support async callbacks (PostgreSQL-compatible API)
+  const _origTransaction = db.transaction.bind(db)
+  ;(db as any).transaction = async function <T>(fn: (tx: any) => Promise<T>): Promise<T> {
+    sqliteDb.exec('BEGIN')
+    try {
+      const result = await fn(db)
+      sqliteDb.exec('COMMIT')
+      return result
+    } catch (e) {
+      sqliteDb.exec('ROLLBACK')
+      throw e
+    }
+  }
+
   db.insert(testSchema.roles).values({ id: ROLES.ADMIN, name: 'admin' }).run()
   db.insert(testSchema.roles).values({ id: ROLES.DEPUTY, name: 'deputy' }).run()
   db.insert(testSchema.roles).values({ id: ROLES.EMPLOYEE, name: 'employee' }).run()

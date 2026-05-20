@@ -51,20 +51,22 @@ export class RoleService extends BaseService {
   }
 
   async updatePermissions(id: number, permissions: string[]) {
-    await this.db.delete(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, id))
-    for (const key of permissions) {
-      const permRows = await this.db
-        .select({ id: schema.permissions.id })
-        .from(schema.permissions)
-        .where(eq(schema.permissions.key, key))
-        .limit(1)
-      if (permRows.length > 0) {
-        await this.db.insert(schema.rolePermissions).values({
-          roleId: id,
-          permissionId: permRows[0].id,
-        })
+    await this.db.transaction(async (tx: any) => {
+      await tx.delete(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, id))
+      for (const key of permissions) {
+        const permRows = await tx
+          .select({ id: schema.permissions.id })
+          .from(schema.permissions)
+          .where(eq(schema.permissions.key, key))
+          .limit(1)
+        if (permRows.length > 0) {
+          await tx.insert(schema.rolePermissions).values({
+            roleId: id,
+            permissionId: permRows[0].id,
+          })
+        }
       }
-    }
+    })
     return { permissions }
   }
 

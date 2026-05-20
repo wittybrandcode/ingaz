@@ -262,19 +262,28 @@ export class ProjectService extends BaseService {
         const fp = path.join(process.cwd(), 'uploads', a.filename)
         if (fs.existsSync(fp)) fs.unlinkSync(fp)
       }
-      await this.db
-        .delete(schema.attachments)
-        .where(
-          and(
-            eq(schema.attachments.entityId, tid),
-            sql`${schema.attachments.entityType} IN ('project', 'task', 'subtask')`,
-          )
-        )
     }
 
-    await this.db.delete(schema.projects).where(eq(schema.projects.id, id))
+    await this.db.transaction(async (tx: any) => {
+      for (const tid of [Number(id), ...taskIds, ...subtaskIds]) {
+        await tx
+          .delete(schema.attachments)
+          .where(
+            and(
+              eq(schema.attachments.entityId, tid),
+              sql`${schema.attachments.entityType} IN ('project', 'task', 'subtask')`,
+            )
+          )
+      }
 
-    await addActivityLog(ctx.userId, 'delete_project', `حذف مشروع "${project?.title}" نهائياً`)
+      await tx.delete(schema.projects).where(eq(schema.projects.id, id))
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'delete_project',
+        details: `حذف مشروع "${project?.title}" نهائياً`,
+      })
+    })
     if (ctx.io) {
       ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
       notifyAll({

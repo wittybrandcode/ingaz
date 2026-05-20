@@ -368,44 +368,52 @@ export class WarningService extends BaseService {
       .limit(1)
     if (!warning) throw new AppError(404, 'الإنذار غير موجود')
 
-    await this.db.update(schema.warnings).set({
-      status: 'cleared',
-      clearedBy: ctx.userId,
-      clearedAt: new Date().toISOString(),
-    }).where(eq(schema.warnings.id, id))
+    let updated: any
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.warnings).set({
+        status: 'cleared',
+        clearedBy: ctx.userId,
+        clearedAt: new Date().toISOString(),
+      }).where(eq(schema.warnings.id, id))
 
-    const [user]: any[] = await this.db
-      .select({ creditScore: schema.users.creditScore })
-      .from(schema.users)
-      .where(eq(schema.users.id, warning.userId))
-      .limit(1)
-    const restored = Math.min(10, (user?.creditScore ?? 0) + warning.pointsDeducted)
-    await this.db.update(schema.users).set({ creditScore: restored }).where(eq(schema.users.id, warning.userId))
+      const [user]: any[] = await tx
+        .select({ creditScore: schema.users.creditScore })
+        .from(schema.users)
+        .where(eq(schema.users.id, warning.userId))
+        .limit(1)
+      const restored = Math.min(10, (user?.creditScore ?? 0) + warning.pointsDeducted)
+      await tx.update(schema.users).set({ creditScore: restored }).where(eq(schema.users.id, warning.userId))
 
-    const [updated]: any[] = await this.db
-      .select({
-        id: schema.warnings.id,
-        status: schema.warnings.status,
-        clearedBy: schema.warnings.clearedBy,
-        clearedAt: schema.warnings.clearedAt,
-        userId: schema.warnings.userId,
-        pointsDeducted: schema.warnings.pointsDeducted,
-        warningTypeName: schema.warnings.warningTypeName,
-        createdAt: schema.warnings.createdAt,
-        warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
-        userName: schema.users.name,
-        userAvatar: schema.users.avatar,
-        issuedByName: issuer.name,
-        issuedByAvatar: issuer.avatar,
+      const [u]: any[] = await tx
+        .select({
+          id: schema.warnings.id,
+          status: schema.warnings.status,
+          clearedBy: schema.warnings.clearedBy,
+          clearedAt: schema.warnings.clearedAt,
+          userId: schema.warnings.userId,
+          pointsDeducted: schema.warnings.pointsDeducted,
+          warningTypeName: schema.warnings.warningTypeName,
+          createdAt: schema.warnings.createdAt,
+          warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
+          userName: schema.users.name,
+          userAvatar: schema.users.avatar,
+          issuedByName: issuer.name,
+          issuedByAvatar: issuer.avatar,
+        })
+        .from(schema.warnings)
+        .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
+        .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
+        .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
+        .where(eq(schema.warnings.id, id))
+        .limit(1)
+      updated = u
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'clear_warning',
+        details: `مسح إنذار للمستخدم ${warning.userId}`,
       })
-      .from(schema.warnings)
-      .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
-      .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
-      .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
-      .where(eq(schema.warnings.id, id))
-      .limit(1)
-
-    await addActivityLog(ctx.userId, 'clear_warning', `مسح إنذار للمستخدم ${warning.userId}`)
+    })
 
     if (ctx.io) {
       notifyUser({
@@ -426,40 +434,49 @@ export class WarningService extends BaseService {
       .limit(1)
     if (!warning) throw new AppError(404, 'الإنذار غير موجود')
 
-    await this.db.update(schema.warnings).set({ status: 'sustained' }).where(eq(schema.warnings.id, id))
+    let newScore = 0
+    let updated: any
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.warnings).set({ status: 'sustained' }).where(eq(schema.warnings.id, id))
 
-    const [targetUser]: any[] = await this.db
-      .select({ creditScore: schema.users.creditScore })
-      .from(schema.users)
-      .where(eq(schema.users.id, warning.userId))
-      .limit(1)
-    const newScore = Math.max(0, (targetUser?.creditScore ?? 10) - warning.pointsDeducted)
+      const [targetUser]: any[] = await tx
+        .select({ creditScore: schema.users.creditScore })
+        .from(schema.users)
+        .where(eq(schema.users.id, warning.userId))
+        .limit(1)
+      newScore = Math.max(0, (targetUser?.creditScore ?? 10) - warning.pointsDeducted)
 
-    await this.db.update(schema.warnings).set({ creditAfter: newScore }).where(eq(schema.warnings.id, id))
-    await this.db.update(schema.users).set({ creditScore: newScore }).where(eq(schema.users.id, warning.userId))
+      await tx.update(schema.warnings).set({ creditAfter: newScore }).where(eq(schema.warnings.id, id))
+      await tx.update(schema.users).set({ creditScore: newScore }).where(eq(schema.users.id, warning.userId))
 
-    const [updated]: any[] = await this.db
-      .select({
-        id: schema.warnings.id,
-        status: schema.warnings.status,
-        creditAfter: schema.warnings.creditAfter,
-        userId: schema.warnings.userId,
-        pointsDeducted: schema.warnings.pointsDeducted,
-        warningTypeName: schema.warnings.warningTypeName,
-        createdAt: schema.warnings.createdAt,
-        warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
-        userName: schema.users.name,
-        userCreditScore: schema.users.creditScore,
-        issuedByName: issuer.name,
+      const [u]: any[] = await tx
+        .select({
+          id: schema.warnings.id,
+          status: schema.warnings.status,
+          creditAfter: schema.warnings.creditAfter,
+          userId: schema.warnings.userId,
+          pointsDeducted: schema.warnings.pointsDeducted,
+          warningTypeName: schema.warnings.warningTypeName,
+          createdAt: schema.warnings.createdAt,
+          warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
+          userName: schema.users.name,
+          userCreditScore: schema.users.creditScore,
+          issuedByName: issuer.name,
+        })
+        .from(schema.warnings)
+        .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
+        .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
+        .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
+        .where(eq(schema.warnings.id, id))
+        .limit(1)
+      updated = u
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'sustain_warning',
+        details: `أبقى على إنذار للمستخدم ${warning.userId}، خصم ${warning.pointsDeducted} نقاط`,
       })
-      .from(schema.warnings)
-      .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
-      .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
-      .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
-      .where(eq(schema.warnings.id, id))
-      .limit(1)
-
-    await addActivityLog(ctx.userId, 'sustain_warning', `أبقى على إنذار للمستخدم ${warning.userId}، خصم ${warning.pointsDeducted} نقاط`)
+    })
 
     if (ctx.io) {
       notifyUser({

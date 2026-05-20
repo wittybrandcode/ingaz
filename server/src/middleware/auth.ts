@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken'
 import type { JwtPayload } from 'jsonwebtoken'
 import crypto from 'crypto'
 import type { Request, Response, NextFunction } from 'express'
-import { eq, and, lte, sql } from 'drizzle-orm'
+import { eq, and, lte, gte, sql } from 'drizzle-orm'
 import { getDb, schema } from '../db/index.js'
 import { ROLES, TOKEN } from '../constants.js'
 
@@ -32,31 +32,33 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
+/** Store JWT exp (seconds since epoch) both in-memory and in DB */
 export function blacklistToken(token: string): void {
   try {
-    const decoded = jwt.decode(token)
-    if (decoded && typeof decoded !== 'string' && decoded.exp) {
-      const expiry = decoded.exp * 1000
+    const decoded = jwt.decode(token) as JwtPayload | null
+    if (decoded?.exp) {
+      const expiry = decoded.exp
       tokenBlacklist.set(token, expiry)
+      persistBlacklist(token, expiry).catch(() => {})
     }
   } catch {}
 }
 
-export async function persistBlacklist(token: string, expiry: number) {
+async function persistBlacklist(token: string, expirySec: number) {
   const h = hashToken(token)
   await getDb().insert(schema.tokenBlacklist).values({
     tokenHash: h,
-    expiresAt: expiry,
-  })
+    expiresAt: expirySec,
+  }).onConflictDoNothing()
 }
 
 function cleanupBlacklist(): void {
-  const now = Date.now()
+  const now = Math.floor(Date.now() / 1000)
   for (const [token, exp] of tokenBlacklist) {
     if (exp <= now) tokenBlacklist.delete(token)
   }
   getDb().delete(schema.tokenBlacklist)
-    .where(eq(schema.tokenBlacklist.expiresAt, Math.floor(now / 1000)))
+    .where(lte(schema.tokenBlacklist.expiresAt, now))
 }
 
 export async function isBlacklisted(token: string): Promise<boolean> {
@@ -68,7 +70,7 @@ export async function isBlacklisted(token: string): Promise<boolean> {
     .where(
       and(
         eq(schema.tokenBlacklist.tokenHash, h),
-        eq(schema.tokenBlacklist.expiresAt, Math.floor(Date.now() / 1000)),
+        gte(schema.tokenBlacklist.expiresAt, Math.floor(Date.now() / 1000)),
       )
     )
     .limit(1)
