@@ -1,0 +1,35 @@
+{
+  "root": true,
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "rules": {
+    "no-unused-vars": "warn",
+    "no-console": "off"
+  },
+  "overrides": [
+    {
+      "files": ["client/src/**/*.{ts,tsx}"],
+      "parser": "@typescript-eslint/parser",
+      "extends": [
+        "eslint:recommended"
+      ],
+      "rules": {
+        "no-unused-vars": "off",
+        "no-undef": "off"
+      }
+    },
+    {
+      "files": ["server/src/**/*.js"],
+      "env": { "node": true },
+      "rules": {
+        "no-unused-vars": "warn"
+      }
+    }
+  ]
+}

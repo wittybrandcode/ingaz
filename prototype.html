@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إنجاز — بروتوتايب التصميم الجديد</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+    --gold: #E5A700;
+    --purple: #8B5CF6;
+    --blue: #4A90D9;
+    --green: #4CAF50;
+    --danger: #EF4444;
+    --bg-dark: #1A2030;
+    --bg-header: #151B28;
+    --col-bg-1: #D5D8DC;
+    --col-bg-2: #DFE2E6;
+    --col-bg-3: #EAECEF;
+    --col-bg-4: #F4F5F7;
+    --card-bg: #FFFFFF;
+    --text-dark: #333;
+    --text-muted: #777;
+    --text-light: #fff;
+}
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Cairo',sans-serif; }
+body { background:var(--bg-dark); color:var(--text-light); height:100vh; overflow:hidden; }
+.app { display:grid; grid-template-rows:56px 1fr 48px; height:100vh; }
+
+/* === HEADER === */
+header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:0 20px; background:var(--bg-header);
+    border-bottom:1px solid rgba(255,255,255,0.06);
+}
+.header-right { display:flex; align-items:center; gap:16px; }
+.logo-area { display:flex; align-items:center; gap:10px; }
+.logo-area svg { width:38px; height:27px; }
+.logo-text { font-size:1.1rem; font-weight:800; color:#fff; }
+nav { display:flex; gap:6px; }
+.nav-pill {
+    padding:5px 16px; border:none; border-radius:8px;
+    background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-family:'Cairo';
+    font-size:0.8rem; font-weight:600; cursor:pointer; transition:all .2s;
+}
+.nav-pill:hover { background:rgba(255,255,255,0.1); color:#fff; }
+.nav-pill.active { background:var(--blue); color:#fff; }
+.header-left { display:flex; align-items:center; gap:8px; }
+.avatar {
+    width:32px; height:32px; border-radius:50%; border:none;
+    display:flex; align-items:center; justify-content:center; font-size:0.7rem;
+    color:#fff; cursor:pointer;
+}
+.av-blue { background:var(--blue); }
+.av-purple { background:var(--purple); }
+.av-green { background:var(--green); }
+.notif-icon {
+    width:32px; height:32px; border-radius:8px; border:none; position:relative;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+    background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.5); font-size:0.85rem;
+}
+.notif-icon .count {
+    position:absolute; top:-3px; right:-3px; width:15px; height:15px;
+    background:var(--danger); color:#fff; font-size:0.55rem; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+}
+
+/* === BOARD === */
+.board { display:grid; grid-template-columns:2fr 7fr 7fr 4fr; gap:8px; padding:8px; overflow:hidden; }
+
+/* === COLUMNS === */
+.column { display:flex; flex-direction:column; border-radius:14px; overflow:hidden; }
+.col-header {
+    display:flex; justify-content:space-between; align-items:center;
+    padding:10px 16px;
+}
+.col-header-info { display:flex; align-items:center; gap:8px; }
+.col-title { font-size:0.82rem; font-weight:700; color:var(--text-dark); }
+.col-count {
+    width:22px; height:22px; border-radius:50%; font-size:0.65rem; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.1); color:var(--text-dark);
+}
+.col-add {
+    width:26px; height:26px; border-radius:50%; border:none;
+    background:rgba(0,0,0,0.08); color:var(--text-muted); display:flex;
+    align-items:center; justify-content:center; cursor:pointer; font-size:0.6rem;
+    transition:all .2s;
+}
+.col-add:hover { background:rgba(0,0,0,0.15); color:var(--text-dark); }
+.col-body { flex:1; overflow-y:auto; padding:8px; display:flex; flex-direction:column; gap:8px; }
+.column.c1 { background:var(--col-bg-1); }
+.column.c2 { background:var(--col-bg-2); }
+.column.c3 { background:var(--col-bg-3); }
+.column.c4 { background:var(--col-bg-4); }
+
+/* === CARDS === */
+.card {
+    background:var(--card-bg); border-radius:10px; padding:14px 16px;
+    cursor:pointer; transition:all .2s; box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.card-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; }
+.card-title { font-size:0.84rem; font-weight:700; color:var(--text-dark); flex:1; }
+.card-add-btn {
+    width:24px; height:24px; border-radius:50%; border:none;
+    background:#E8E8E8; color:#888; display:flex; align-items:center;
+    justify-content:center; cursor:pointer; font-size:0.55rem; flex-shrink:0;
+    transition:all .2s;
+}
+.card-add-btn:hover { background:var(--blue); color:#fff; }
+.card-desc { font-size:0.72rem; color:var(--text-muted); line-height:1.6; margin-bottom:10px; }
+.card-footer { display:flex; justify-content:space-between; align-items:center; }
+.card-meta { display:flex; gap:5px; }
+.tag { padding:2px 10px; border-radius:6px; font-size:0.62rem; font-weight:600; background:#EEEEEE; color:#666; }
+.tag-green { background:rgba(76,175,80,0.12); color:#2E7D32; }
+.tag-gold { background:rgba(229,167,0,0.12); color:#F57F17; }
+.tag-blue { background:rgba(74,144,217,0.12); color:#1565C0; }
+.tag-purple { background:rgba(139,92,246,0.12); color:#6A1B9A; }
+.tag-red { background:rgba(239,68,68,0.12); color:#C62828; }
+.card-icons { display:flex; align-items:center; gap:6px; }
+.card-icon { font-size:0.65rem; color:#AAA; }
+.mini-av {
+    width:20px; height:20px; border-radius:50%; font-size:0.5rem; color:#fff;
+    display:inline-flex; align-items:center; justify-content:center;
+    margin-right:-4px; border:2px solid var(--card-bg);
+}
+.progress { height:4px; background:#E0E0E0; border-radius:2px; margin-top:8px; }
+.progress .fill { height:100%; border-radius:2px; }
+.fill-green { background:var(--green); }
+.fill-gold { background:var(--gold); }
+.fill-red { background:var(--danger); }
+
+/* === MEMBER CARD === */
+.member-card {
+    display:flex; align-items:center; gap:10px; padding:10px 12px;
+    background:var(--card-bg); border-radius:10px; cursor:pointer;
+    transition:all .2s; box-shadow:0 1px 3px rgba(0,0,0,0.06);
+}
+.member-card:hover { transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,0.1); }
+.member-avatar {
+    width:34px; height:34px; border-radius:50%; display:flex;
+    align-items:center; justify-content:center; font-size:0.75rem; color:#fff; flex-shrink:0;
+}
+.member-info { flex:1; min-width:0; }
+.member-name { font-size:0.78rem; font-weight:700; color:var(--text-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.member-role { font-size:0.65rem; color:var(--text-muted); }
+.member-warn { font-size:0.62rem; color:#F57F17; margin-top:2px; }
+
+/* === FOOTER === */
+.notif-bar {
+    display:flex; justify-content:space-between; align-items:center;
+    margin:0 10px 8px; padding:0 6px 0 14px; background:rgba(255,255,255,0.04);
+    border-radius:10px; height:36px;
+}
+.notif-bar-label {
+    padding:4px 14px; border-radius:6px; font-size:0.75rem; font-weight:600;
+    color:#fff; background:rgba(255,255,255,0.06);
+    display:flex; align-items:center; gap:6px;
+}
+.notif-bar-content { flex:1; padding:0 14px; font-size:0.75rem; color:rgba(255,255,255,0.5); }
+.notif-close {
+    width:24px; height:24px; border-radius:6px; border:none;
+    background:rgba(239,68,68,0.1); color:var(--danger); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; font-size:0.65rem;
+}
+.notif-close:hover { background:var(--danger); color:#fff; }
+
+.col-body::-webkit-scrollbar { width:3px; }
+.col-body::-webkit-scrollbar-track { background:transparent; }
+.col-body::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); border-radius:3px; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+.card, .member-card { animation:fadeUp .35s ease both; }
+.card:nth-child(2), .member-card:nth-child(2) { animation-delay:.05s; }
+.card:nth-child(3), .member-card:nth-child(3) { animation-delay:.1s; }
+</style>
+</head>
+<body>
+<div class="app">
+    <header>
+        <div class="header-right">
+            <div class="logo-area">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 162 117">
+                    <rect fill="#f2f2f2" width="162" height="117" rx="36" ry="36"/>
+                    <rect fill="#4A90D9" x="126" y="18" width="18" height="54" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="45" y="18" width="18" height="54" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="99" y="45" width="18" height="27" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="18" y="72" width="18" height="27" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="72" y="45" width="18" height="27" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="99" y="18" width="18" height="18" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="72" y="81" width="18" height="18" rx="2" ry="2"/>
+                    <rect fill="#4A90D9" x="18" y="45" width="18" height="18" rx="2" ry="2"/>
+                </svg>
+                <span class="logo-text">إنجـــاز</span>
+            </div>
+            <nav>
+                <button class="nav-pill active">العمليات</button>
+                <button class="nav-pill">الإدارة</button>
+                <button class="nav-pill">الإنذارات</button>
+                <button class="nav-pill">الإعدادات</button>
+            </nav>
+        </div>
+        <div class="header-left">
+            <div class="notif-icon"><i class="fa-solid fa-bell"></i><span class="count">3</span></div>
+            <div class="avatar av-purple"><i class="fa-solid fa-user"></i></div>
+            <div class="avatar av-green"><i class="fa-solid fa-user"></i></div>
+            <div class="avatar av-blue"><i class="fa-solid fa-user"></i></div>
+        </div>
+    </header>
+
+    <div class="board">
+        <!-- الأعضاء -->
+        <div class="column c4">
+            <div class="col-header">
+                <div class="col-header-info">
+                    <span class="col-title">الأعضاء</span>
+                    <span class="col-count">5</span>
+                </div>
+                <button class="col-add"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="col-body">
+                <div class="member-card">
+                    <div class="member-avatar" style="background:var(--blue)"><i class="fa-solid fa-user-tie"></i></div>
+                    <div class="member-info">
+                        <div class="member-name">أحمد بن علي</div>
+                        <div class="member-role">مدير عام</div>
+                    </div>
+                </div>
+                <div class="member-card">
+                    <div class="member-avatar" style="background:var(--purple)"><i class="fa-solid fa-user-shield"></i></div>
+                    <div class="member-info">
+                        <div class="member-name">سارة محمد</div>
+                        <div class="member-role">مدير نائب</div>
+                    </div>
+                </div>
+                <div class="member-card">
+                    <div class="member-avatar" style="background:var(--green)"><i class="fa-solid fa-user"></i></div>
+                    <div class="member-info">
+                        <div class="member-name">خالد يوسف</div>
+                        <div class="member-role">موظف</div>
+                        <div class="member-warn"><i class="fa-solid fa-triangle-exclamation"></i> إنذار 1</div>
+                    </div>
+                </div>
+                <div class="member-card">
+                    <div class="member-avatar" style="background:var(--gold)"><i class="fa-solid fa-user"></i></div>
+                    <div class="member-info">
+                        <div class="member-name">فاطمة حسن</div>
+                        <div class="member-role">موظفة</div>
+                    </div>
+                </div>
+                <div class="member-card" style="opacity:0.5">
+                    <div class="member-avatar" style="background:var(--danger)"><i class="fa-solid fa-snowflake"></i></div>
+                    <div class="member-info">
+                        <div class="member-name">عمر الكريم</div>
+                        <div class="member-role">حساب مجمّد</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- المهام الفرعية -->
+        <div class="column c3">
+            <div class="col-header">
+                <div class="col-header-info">
+                    <span class="col-title">المهام الفرعية</span>
+                    <span class="col-count">3</span>
+                </div>
+                <button class="col-add"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="col-body">
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">تصميم واجهة لوحة التحكم</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">إنشاء تصميم عصري للوحة التحكم الرئيسية مع دعم الوضع الداكن</div>
+                    <div class="card-footer">
+                        <div class="card-icons">
+                            <i class="fa-solid fa-gear card-icon"></i>
+                            <span class="mini-av" style="background:var(--green)">خ</span>
+                        </div>
+                        <div class="card-meta"><span class="tag tag-green">مكتملة</span></div>
+                    </div>
+                    <div class="progress"><div class="fill fill-green" style="width:100%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">تطوير نظام الإشعارات</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">ربط الإشعارات اللحظية مع SSE وتحسين تجربة المستخدم</div>
+                    <div class="card-footer">
+                        <div class="card-icons">
+                            <i class="fa-solid fa-gear card-icon"></i>
+                            <span class="mini-av" style="background:var(--purple)">ف</span>
+                        </div>
+                        <div class="card-meta"><span class="tag tag-gold">جارية</span></div>
+                    </div>
+                    <div class="progress"><div class="fill fill-gold" style="width:60%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">كتابة التقارير الشهرية</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">إعداد تقارير الأداء لشهر أبريل مع الرسوم البيانية</div>
+                    <div class="card-footer">
+                        <div class="card-icons"><i class="fa-solid fa-gear card-icon"></i></div>
+                        <div class="card-meta"><span class="tag">معلّقة</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- المهام الرئيسية -->
+        <div class="column c2">
+            <div class="col-header">
+                <div class="col-header-info">
+                    <span class="col-title">المهام الرئيسية</span>
+                    <span class="col-count">2</span>
+                </div>
+                <button class="col-add"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="col-body">
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">تطوير الواجهة الأمامية</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">إعادة تصميم كامل الواجهة لتتوافق مع المعايير المؤسسية الجديدة</div>
+                    <div class="card-footer">
+                        <div class="card-icons">
+                            <i class="fa-solid fa-gear card-icon"></i>
+                            <span class="mini-av" style="background:var(--green)">خ</span>
+                            <span class="mini-av" style="background:var(--purple)">ف</span>
+                        </div>
+                        <div class="card-meta"><span class="tag tag-gold">4 فرعية</span></div>
+                    </div>
+                    <div class="progress"><div class="fill fill-gold" style="width:45%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">نظام إدارة الأداء</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">بناء نظام متكامل للإنذارات والتجميد والتقارير الإدارية</div>
+                    <div class="card-footer">
+                        <div class="card-icons"><i class="fa-solid fa-gear card-icon"></i></div>
+                        <div class="card-meta"><span class="tag tag-green">مكتملة</span></div>
+                    </div>
+                    <div class="progress"><div class="fill fill-green" style="width:100%"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- المشاريع -->
+        <div class="column c1">
+            <div class="col-header">
+                <div class="col-header-info">
+                    <span class="col-title">المشاريع</span>
+                    <span class="col-count">2</span>
+                </div>
+                <button class="col-add"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <div class="col-body">
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">منصة إنجاز V2</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">إعادة هيكلة كاملة لمنصة إدارة المهام المؤسسية مع تصميم عصري</div>
+                    <div class="card-footer">
+                        <div class="card-icons"><i class="fa-solid fa-gear card-icon"></i></div>
+                        <div class="card-meta">
+                            <span class="tag tag-gold">2 مهمة</span>
+                            <span class="tag tag-green">نشط</span>
+                        </div>
+                    </div>
+                    <div class="progress"><div class="fill fill-green" style="width:72%"></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-top">
+                        <div class="card-title">التقارير المالية الربعية</div>
+                        <button class="card-add-btn"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    <div class="card-desc">مشروع إعداد وتقديم التقارير المالية للربع الثاني 2026</div>
+                    <div class="card-footer">
+                        <div class="card-icons"><i class="fa-solid fa-gear card-icon"></i></div>
+                        <div class="card-meta">
+                            <span class="tag tag-blue">0 مهمة</span>
+                            <span class="tag tag-purple">قادم</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="notif-bar">
+        <div class="notif-bar-label"><i class="fa-solid fa-bell"></i> التنبيهات</div>
+        <div class="notif-bar-content">
+            <i class="fa-solid fa-circle-info" style="color:var(--blue);margin-left:6px"></i>
+            تم تسليم إثبات عمل جديد من خالد يوسف — بانتظار المراجعة
+        </div>
+        <button class="notif-close"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+</div>
+</body>
+</html>

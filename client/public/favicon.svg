@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 162 117">
+  <defs>
+    <style>
+      .bg { fill: #f2f2f2; stroke-width: 0px; }
+      .bar { fill: #4361ee; stroke-width: 0px; }
+    </style>
+  </defs>
+  <rect class="bg" width="162" height="117" rx="20"/>
+  <rect class="bar" x="126" y="18" width="18" height="54" rx="2"/>
+  <rect class="bar" x="45" y="18" width="18" height="54" rx="2"/>
+  <rect class="bar" x="99" y="45" width="18" height="27" rx="2"/>
+  <rect class="bar" x="18" y="72" width="18" height="27" rx="2"/>
+  <rect class="bar" x="72" y="45" width="18" height="27" rx="2"/>
+  <rect class="bar" x="99" y="18" width="18" height="18" rx="2"/>
+  <rect class="bar" x="72" y="81" width="18" height="18" rx="2"/>
+  <rect class="bar" x="18" y="45" width="18" height="18" rx="2"/>
+</svg>

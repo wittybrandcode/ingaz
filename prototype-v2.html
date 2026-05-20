@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إنجاز — بروتوتايب V2</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{fontFamily:{cairo:['Cairo','sans-serif']},colors:{board:{bg:'#1A2030',header:'#151B28',col1:'#D5D8DC',col2:'#DFE2E6',col3:'#EAECEF',col4:'#F4F5F7',card:'#FFFFFF',gold:'#E5A700',blue:'#4A90D9',green:'#4CAF50',danger:'#EF4444',purple:'#8B5CF6',muted:'#777',dark:'#333'}}}}}}</script>
+<style>
+*{font-family:'Cairo',sans-serif;margin:0;padding:0;box-sizing:border-box}
+body{background:#1A2030;height:100vh;overflow:hidden}
+#root{height:100vh}
+.board-grid{display:grid;grid-template-columns:4fr 7fr 7fr 2fr;gap:8px;padding:8px;height:100%;overflow:hidden}
+.col-body{flex:1;overflow-y:auto;padding:8px;display:flex;flex-direction:column;gap:8px;min-height:0}
+.col-body::-webkit-scrollbar{width:3px}
+.col-body::-webkit-scrollbar-track{background:transparent}
+.col-body::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:3px}
+.card-hover{transition:all .2s}
+.card-hover:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.12)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.anim-fade{animation:fadeUp .35s ease both}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:50;display:flex;align-items:center;justify-content:center}
+.modal-content{background:#fff;border-radius:16px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;animation:fadeUp .25s ease both}
+.modal-content::-webkit-scrollbar{width:3px}
+.modal-content::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.12);border-radius:3px}
+.skeleton{background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;animation:shimmer 1.2s infinite;border-radius:8px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.pill-btn{padding:5px 16px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all .2s;border:none;font-family:'Cairo'}
+.tag{padding:2px 10px;border-radius:6px;font-size:0.62rem;font-weight:600}
+.app-layout{display:grid;grid-template-rows:56px 1fr 40px;height:100vh}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+// ─── DATA ───
+const DATA = {
+  projects: [
+    { id:1, title:'منصة إنجاز V2', desc:'إعادة هيكلة كاملة لمنصة إدارة المهام المؤسسية مع تصميم عصري', progress:72, tasksCount:2, status:'نشط', statusColor:'green', images:['https://picsum.photos/seed/proj1a/400/300','https://picsum.photos/seed/proj1b/400/300','https://picsum.photos/seed/proj1c/400/300'] },
+    { id:2, title:'التقارير المالية الربعية', desc:'مشروع إعداد وتقديم التقارير المالية للربع الثاني 2026', progress:0, tasksCount:0, status:'قادم', statusColor:'purple', images:['https://picsum.photos/seed/proj2a/400/300'] },
+    { id:3, title:'تدريب الموظفين 2026', desc:'برنامج تدريبي شامل لتطوير مهارات الفريق التقني', progress:30, tasksCount:2, status:'جاري', statusColor:'gold', images:['https://picsum.photos/seed/proj3a/400/300','https://picsum.photos/seed/proj3b/400/300'] },
+  ],
+  tasks: [
+    { id:1, projectId:1, title:'تطوير الواجهة الأمامية', desc:'إعادة تصميم كامل الواجهة لتتوافق مع المعايير المؤسسية', progress:45, subtasksCount:4, assignees:['خالد','فاطمة'], images:['https://picsum.photos/seed/task1a/400/300','https://picsum.photos/seed/task1b/400/300'] },
+    { id:2, projectId:1, title:'نظام إدارة الأداء', desc:'بناء نظام متكامل للإنذارات والتجميد والتقارير الإدارية', progress:100, subtasksCount:3, assignees:['أحمد'], images:['https://picsum.photos/seed/task2a/400/300'] },
+    { id:3, projectId:3, title:'إعداد المحتوى التدريبي', desc:'كتابة المحتوى والمستندات الخاصة بالدورات التدريبية', progress:30, subtasksCount:2, assignees:['فاطمة'], images:[] },
+  ],
+  subtasks: [
+    { id:1, taskId:1, title:'تصميم واجهة لوحة التحكم', desc:'إنشاء تصميم عصري للوحة التحكم الرئيسية مع دعم الوضع الداكن', status:'approved', assignee:'خالد', deadline:'2026-05-15', images:['https://picsum.photos/seed/sub1a/400/300'] },
+    { id:2, taskId:1, title:'تطوير نظام الإشعارات', desc:'ربط الإشعارات اللحظية مع SSE وتحسين تجربة المستخدم', status:'in_progress', assignee:'فاطمة', deadline:'2026-05-20', images:[] },
+    { id:3, taskId:1, title:'كتابة التقارير الشهرية', desc:'إعداد تقارير الأداء لشهر أبريل مع الرسوم البيانية', status:'pending', assignee:'خالد', deadline:'2026-05-10', images:['https://picsum.photos/seed/sub3a/400/300'] },
+    { id:4, taskId:2, title:'تصميم قاعدة بيانات الإنذارات', desc:'هيكلة جداول warnings والعلاقات مع users', status:'approved', assignee:'أحمد', deadline:'2026-05-12', images:[] },
+    { id:5, taskId:3, title:'إعداد فيديوهات تدريبية', desc:'تصوير ومونتاج فيديوهات تدريبية لمدة 10 ساعات', status:'pending', assignee:'فاطمة', deadline:'2026-06-01', images:['https://picsum.photos/seed/sub5a/400/300','https://picsum.photos/seed/sub5b/400/300'] },
+  ],
+  members: [
+    { id:1, name:'أحمد بن علي', role:'مدير عام', roleId:1, avatarBg:'#4A90D9', creditScore:10, frozen:false },
+    { id:2, name:'سارة محمد', role:'مدير نائب', roleId:2, avatarBg:'#8B5CF6', creditScore:9, frozen:false },
+    { id:3, name:'خالد يوسف', role:'موظف', roleId:3, avatarBg:'#4CAF50', creditScore:6, frozen:false, warnings:1 },
+    { id:4, name:'فاطمة حسن', role:'موظفة', roleId:3, avatarBg:'#E5A700', creditScore:8, frozen:false },
+    { id:5, name:'عمر الكريم', role:'حساب مجمّد', roleId:3, avatarBg:'#EF4444', creditScore:2, frozen:true },
+  ],
+  notifications: [
+    'تم تسليم إثبات عمل جديد من خالد يوسف — بانتظار المراجعة',
+    'اقتراب موعد تسليم مهمة "تصميم واجهة لوحة التحكم" — 24 ساعة متبقية',
+  ]
+};
+
+const statusConfig = {
+  pending:     { label:'معلّقة',   color:'text-gray-500', bg:'bg-gray-100' },
+  in_progress: { label:'جارية',    color:'text-amber-600', bg:'bg-amber-50' },
+  submitted:   { label:'مقدّمة',   color:'text-purple-600', bg:'bg-purple-50' },
+  approved:    { label:'مكتملة',   color:'text-green-600', bg:'bg-green-50' },
+  rejected:    { label:'مرفوضة',   color:'text-red-600', bg:'bg-red-50' },
+};
+
+const progressColor = p => p >= 100 ? 'bg-green-500' : p >= 50 ? 'text-amber-500' : 'bg-red-500';
+
+// ─── COMPONENTS ───
+
+function Icon({ name, className = '' }) {
+  const icons = {
+    plus: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+    bell: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"/></svg>',
+    gear: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313,.686.645.87.074,.04.147,.083.22,.127.324,.196,.72,.257 1.075,.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431,.992a6.759 6.759 0 010,.255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>',
+    xmark: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M6 18L18 6M6 6l12 12"/></svg>',
+    arrowUp: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18"/></svg>',
+    user: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>',
+    shield: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>',
+    exclamation: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>',
+    userTie: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>',
+    snowflake: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 3v2.25m0 0l-2.25-2.25M12 5.25l2.25-2.25M12 5.25V12m0 0l2.25-2.25M12 12l-2.25 2.25M12 12v6.75m0 0l2.25-2.25M12 18.75l-2.25 2.25M3.75 12h15M3.75 12l2.25-2.25M3.75 12l2.25 2.25M21.75 12l-2.25-2.25M21.75 12l-2.25 2.25"/></svg>',
+    external: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>',
+    pencil: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/></svg>',
+    trash: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>',
+    archive: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3l2.25 2.25m0 0l2.25-2.25M12 10.5l-2.25 2.25M12 10.5l2.25 2.25m-8.25-3h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>',
+    download: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>',
+    users: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/><path d="M8.25 6a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zM1.501 20.118a5.25 5.25 0 017.5 0A11.94 11.94 0 014.5 21.75c-.924 0-1.819-.117-2.999-.414z"/></svg>',
+    list: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>',
+    userCheck: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/><path d="M16.5 7.5l2.25 2.25L22.5 6"/></svg>',
+    userTask: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/><path d="M9 13.5l1.5 1.5 3.75-3.75M14.25 6h-.75A2.25 2.25 0 0011.25 8.25v.75"/></svg>',
+    palette: '<svg stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1.01 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4c-.83 0-1.5-.67-1.5-1.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>',
+  };
+  const svg = icons[name] || '';
+  return React.createElement('span', {
+    className,
+    dangerouslySetInnerHTML: { __html: svg }
+  });
+}
+
+// ─── BOARD HEADER ───
+function BoardHeader({ activeTab, setActiveTab }) {
+  const tabs = [
+    { key:'operations', label:'العمليات' },
+    { key:'admin', label:'الإدارة' },
+    { key:'warnings', label:'الإنذارات' },
+    { key:'settings', label:'الإعدادات' },
+  ];
+  return (
+    <header className="flex items-center justify-between px-5" style={{ background:'#151B28', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2.5">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 162 117" className="w-9 h-7">
+            <rect fill="#f2f2f2" width="162" height="117" rx="36"/>
+            <rect fill="#4A90D9" x="126" y="18" width="18" height="54" rx="2"/>
+            <rect fill="#4A90D9" x="45" y="18" width="18" height="54" rx="2"/>
+            <rect fill="#4A90D9" x="99" y="45" width="18" height="27" rx="2"/>
+            <rect fill="#4A90D9" x="18" y="72" width="18" height="27" rx="2"/>
+            <rect fill="#4A90D9" x="72" y="45" width="18" height="27" rx="2"/>
+            <rect fill="#4A90D9" x="99" y="18" width="18" height="18" rx="2"/>
+            <rect fill="#4A90D9" x="72" y="81" width="18" height="18" rx="2"/>
+            <rect fill="#4A90D9" x="18" y="45" width="18" height="18" rx="2"/>
+          </svg>
+          <span className="text-white font-extrabold text-lg">إنجـــاز</span>
+        </div>
+        <nav className="flex gap-1.5">
+          {tabs.map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key)}
+              className="pill-btn" style={{
+                background: activeTab === t.key ? '#4A90D9' : 'rgba(255,255,255,0.06)',
+                color: activeTab === t.key ? '#fff' : 'rgba(255,255,255,0.5)',
+              }}>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="relative w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer" style={{ background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)' }}>
+          <Icon name="bell" className="w-4 h-4" />
+          <span className="absolute -top-0.5 -left-0.5 w-3.5 h-3.5 rounded-full text-white text-[0.5rem] font-bold flex items-center justify-center" style={{ background:'#EF4444' }}>3</span>
+        </div>
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs cursor-pointer" style={{ background:'#8B5CF6' }}>
+          <Icon name="user" className="w-4 h-4" />
+        </div>
+      </div>
+    </header>
+  );
+}
+
+// ─── CARD COMPONENTS ───
+
+function ProjectCard({ project, onSelect, index, isSelected, onSettings }) {
+  const colors = { green:'bg-green-500', gold:'bg-amber-500', purple:'bg-purple-500' };
+  const fill = colors[project.statusColor] || 'bg-blue-500';
+  return (
+    <div className={`card-hover rounded-xl p-4 cursor-pointer bg-white anim-fade shadow-sm ${isSelected ? 'ring-2 ring-blue-500' : ''}`} style={{ animationDelay: `${index * 0.05}s` }} onClick={() => onSelect('project', project)}>
+      <div className="flex justify-between items-start mb-1.5">
+        <h3 className="text-sm font-bold text-gray-800 flex-1">{project.title}</h3>
+        <div className="flex items-center gap-1">
+          <button onClick={e => { e.stopPropagation(); onSettings(project); }}
+            className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer shrink-0 hover:bg-gray-300 transition-all" style={{ background:'#E8E8E8', color:'#888' }} title="إعدادات المشروع">
+            <Icon name="gear" className="w-3 h-3" />
+          </button>
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed mb-2.5 line-clamp-2">{project.desc}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-1.5">
+          <span className="tag text-xs" style={{ background:'rgba(76,175,80,0.12)', color:'#2E7D32' }}>{project.tasksCount} مهمة</span>
+          <span className={`tag text-xs ${project.statusColor === 'green' ? 'bg-green-50 text-green-700' : project.statusColor === 'gold' ? 'bg-amber-50 text-amber-700' : 'bg-purple-50 text-purple-700'}`}>{project.status}</span>
+        </div>
+      </div>
+      {project.progress > 0 && (
+        <div className="h-1 rounded-full mt-2" style={{ background:'#E0E0E0' }}>
+          <div className={`h-full rounded-full ${fill}`} style={{ width: `${project.progress}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TaskCard({ task, onSelect, index, isSelected, onSettings }) {
+  const colors = ['#4CAF50','#8B5CF6','#E5A700'];
+  return (
+    <div className={`card-hover rounded-xl p-4 cursor-pointer bg-white anim-fade shadow-sm ${isSelected ? 'ring-2 ring-amber-500' : ''}`} style={{ animationDelay: `${index * 0.05}s` }} onClick={() => onSelect('task', task)}>
+      <div className="flex justify-between items-start mb-1.5">
+        <h3 className="text-sm font-bold text-gray-800 flex-1">{task.title}</h3>
+        <button onClick={e => { e.stopPropagation(); onSettings(task); }}
+          className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer shrink-0 hover:bg-gray-300 transition-all" style={{ background:'#E8E8E8', color:'#888' }} title="إعدادات المهمة">
+          <Icon name="gear" className="w-3 h-3" />
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed mb-2.5 line-clamp-2">{task.desc}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5" style={{ direction:'ltr' }}>
+          {task.assignees.map((a,i) => (
+            <span key={i} className="w-5 h-5 rounded-full text-white text-[0.5rem] font-bold flex items-center justify-center border-2 border-white -ml-1.5" style={{ background: colors[i % 3], zIndex: task.assignees.length - i }}>
+              {a[0]}
+            </span>
+          ))}
+        </div>
+        <span className={`tag text-xs`} style={{ background:'rgba(229,167,0,0.12)', color:'#F57F17' }}>{task.subtasksCount} فرعية</span>
+      </div>
+      <div className="h-1 rounded-full mt-2" style={{ background:'#E0E0E0' }}>
+        <div className={`h-full rounded-full ${task.progress >= 100 ? 'bg-green-500' : task.progress >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${task.progress}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function SubtaskCard({ subtask, onSelect, index }) {
+  const cfg = statusConfig[subtask.status] || statusConfig.pending;
+  const avatarColors = ['#4A90D9','#8B5CF6','#4CAF50','#E5A700','#EF4444'];
+  const assignees = ['أحمد','سارة','خالد','فاطمة','عمر'];
+  const idx = assignees.indexOf(subtask.assignee);
+  const avColor = avatarColors[idx >= 0 ? idx : 0];
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(subtask.title);
+  const [menuPos, setMenuPos] = useState({ top:0, left:0 });
+  const menuRef = React.useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false) };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
+
+  return (
+    <div className="card-hover rounded-xl p-4 cursor-pointer bg-white anim-fade shadow-sm" style={{ animationDelay: `${index * 0.05}s` }} onClick={() => onSelect('subtask', subtask)}>
+      <div className="flex justify-between items-start mb-1">
+        {editing ? (
+          <div className="flex-1 flex items-center gap-1" onClick={e => e.stopPropagation()}>
+            <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+              className="flex-1 px-2 py-1 text-sm border border-purple-300 rounded outline-none focus:ring-2 focus:ring-purple-200" style={{ fontFamily:'Cairo', fontSize:'0.75rem' }} />
+            <button onClick={() => { alert(`⟳ تم التحديث إلى: "${editTitle}"`); setEditing(false) }}
+              className="p-1 rounded bg-purple-500 text-white text-xs border-none cursor-pointer">✓</button>
+            <button onClick={() => { setEditing(false); setEditTitle(subtask.title) }}
+              className="p-1 rounded bg-gray-200 text-gray-600 text-xs border-none cursor-pointer">✕</button>
+          </div>
+        ) : (
+          <h3 className="text-sm font-bold text-gray-800 flex-1">{subtask.title}</h3>
+        )}
+        <div className="relative">
+          <button onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setMenuPos({ top:r.bottom + 4, left:r.left }); setMenuOpen(true) }}
+            className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer shrink-0 hover:bg-gray-300 transition-all" style={{ background:'#E8E8E8', color:'#888' }} title="إعدادات">
+            <Icon name="gear" className="w-3 h-3" />
+          </button>
+          {menuOpen && (
+            <div ref={menuRef} style={{ position:'fixed', top:menuPos.top, left:menuPos.left, zIndex:9999 }}
+              className="w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 anim-fade" onClick={e => e.stopPropagation()}>
+              <button onClick={() => { setEditing(true); setMenuOpen(false) }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs border-none cursor-pointer transition-all hover:bg-purple-50 text-right" style={{ background:'transparent', color:'#333' }}>
+                <Icon name="pencil" className="w-4 h-4 text-purple-500" /> تعديل
+              </button>
+              <button onClick={() => { setMenuOpen(false); if (confirm('هل أنت متأكد من تجميد هذه المهمة الفرعية؟')) alert('⟳ تم التجميد') }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs border-none cursor-pointer transition-all hover:bg-blue-50 text-right" style={{ background:'transparent', color:'#333' }}>
+                <Icon name="snowflake" className="w-4 h-4 text-blue-500" /> تجميد
+              </button>
+              <div className="h-px bg-gray-100 mx-3 my-1" />
+              <button onClick={() => { setMenuOpen(false); if (confirm('هل أنت متأكد من حذف هذه المهمة الفرعية؟')) alert('⟳ تم الحذف') }}
+                className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs border-none cursor-pointer transition-all hover:bg-red-50 text-right" style={{ background:'transparent', color:'#EF4444' }}>
+                <Icon name="trash" className="w-4 h-4" /> حذف
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-gray-500 leading-relaxed mb-2.5 line-clamp-1">{subtask.desc}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5">
+          <span className="w-5 h-5 rounded-full text-white text-[0.5rem] font-bold flex items-center justify-center" style={{ background: avColor }}>{subtask.assignee[0]}</span>
+          <span className="text-xs text-gray-500">{subtask.assignee}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`tag text-[0.55rem] ${cfg.bg} ${cfg.color}`}>{cfg.label}</span>
+          <span className="text-[0.55rem] text-gray-400">{subtask.deadline}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MemberCard({ member, onSelect, index }) {
+  return (
+    <div className="card-hover rounded-xl px-3 py-2.5 cursor-pointer bg-white anim-fade shadow-sm flex items-center gap-2.5" style={{ animationDelay: `${index * 0.05}s`, opacity: member.frozen ? 0.5 : 1 }} onClick={() => onSelect('member', member)}>
+      <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs shrink-0" style={{ background: member.avatarBg }}>
+        {member.frozen ? <Icon name="snowflake" className="w-3.5 h-3.5" /> : <Icon name="user" className="w-3.5 h-3.5" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold text-gray-800 truncate">{member.name}</div>
+        <div className="text-xs text-gray-500">{member.role}</div>
+        {member.warnings > 0 && <div className="text-[0.6rem] text-amber-600 mt-0.5 flex items-center gap-1"><Icon name="exclamation" className="w-2.5 h-2.5" /> إنذار {member.warnings}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── BOARD ───
+function Board({ onSelect, memberTab, setMemberTab, selectedProject, selectedTask, onSettingsProject, onSettingsTask, colorTheme }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  const filteredMembers = useMemo(() => {
+    const all = DATA.members;
+    if (memberTab === 'active') return all.filter(m => !m.frozen).sort((a,b) => b.creditScore - a.creditScore);
+    if (memberTab === 'on_task') {
+      const assigneeNames = [...new Set(DATA.subtasks.map(s => s.assignee))];
+      return all.filter(m => assigneeNames.includes(m.name));
+    }
+    return all;
+  }, [memberTab]);
+
+  const themes = {
+    default: ['#D5D8DC','#DFE2E6','#EAECEF','#F4F5F7'],
+    slate:   ['#CBD5E1','#94A3B8','#64748B','#475569'],
+    emerald: ['#A7F3D0','#6EE7B7','#34D399','#10B981'],
+    rose:    ['#FECDD3','#FDA4AF','#FB7185','#F43F5E'],
+    amber:   ['#FDE68A','#FCD34D','#FBBF24','#F59E0B'],
+    indigo:  ['#C7D2FE','#A5B4FC','#818CF8','#6366F1'],
+  };
+  const columnBg = themes[colorTheme] || themes.default;
+
+  if (loading) return (
+    <div className="board-grid">
+      {[0,1,2,3].map(col => (
+        <div key={col} className="rounded-xl flex flex-col overflow-hidden" style={{ background: columnBg[col] }}>
+          <div className="flex items-center justify-between px-4 py-2.5">
+            <div className="skeleton h-4 w-20" />
+            <div className="skeleton h-5 w-5 rounded-full" />
+          </div>
+          <div className="col-body">
+            {[0,1,2].map(i => (
+              <div key={i} className="rounded-xl p-4 bg-white">
+                <div className="skeleton h-4 w-3/4 mb-2" />
+                <div className="skeleton h-3 w-full mb-1" />
+                <div className="skeleton h-3 w-2/3 mb-3" />
+                <div className="skeleton h-1 w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if (error) return (
+    <div className="flex items-center justify-center h-full text-white">
+      <div className="text-center">
+        <div className="text-4xl mb-2">⚠️</div>
+        <p className="text-lg font-bold mb-2">حدث خطأ في تحميل البيانات</p>
+        <button onClick={() => { setError(false); setLoading(true); setTimeout(() => setLoading(false), 600); }}
+          className="pill-btn text-white" style={{ background:'#4A90D9' }}>إعادة المحاولة</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="board-grid">
+      {/* Column 1: المشاريع */}
+      <div className="rounded-xl flex flex-col overflow-hidden" style={{ background: columnBg[0] }}>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-700">المشاريع</span>
+            <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background:'rgba(0,0,0,0.1)', color:'#333' }}>{DATA.projects.length}</span>
+          </div>
+          <button className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background:'rgba(0,0,0,0.08)', color:'#777' }}>
+            <Icon name="plus" className="w-3 h-3" />
+          </button>
+        </div>
+        <div className="col-body">
+          {DATA.projects.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-xs">لا توجد مشاريع بعد</div>
+          ) : DATA.projects.map((p,i) => <ProjectCard key={p.id} project={p} onSelect={onSelect} index={i} isSelected={selectedProject?.id === p.id} onSettings={onSettingsProject} />)}
+        </div>
+      </div>
+
+      {/* Column 2: المهام الرئيسية */}
+      <div className="rounded-xl flex flex-col overflow-hidden" style={{ background: columnBg[1] }}>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-700">المهام الرئيسية</span>
+            <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background:'rgba(0,0,0,0.1)', color:'#333' }}>
+              {selectedProject ? DATA.tasks.filter(t => t.projectId === selectedProject.id).length : 0}
+            </span>
+          </div>
+          <button className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background:'rgba(0,0,0,0.08)', color:'#777' }}>
+            <Icon name="plus" className="w-3 h-3" />
+          </button>
+        </div>
+        <div className="col-body">
+          {!selectedProject ? (
+            <div className="text-center py-8 text-gray-400 text-xs">اختر مشروعاً لعرض مهامه</div>
+          ) : DATA.tasks.filter(t => t.projectId === selectedProject.id).length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-xs">لا توجد مهام رئيسية في هذا المشروع</div>
+          ) : DATA.tasks.filter(t => t.projectId === selectedProject.id).map((t,i) => <TaskCard key={t.id} task={t} onSelect={onSelect} index={i} isSelected={selectedTask?.id === t.id} onSettings={onSettingsTask} />)}
+        </div>
+      </div>
+
+      {/* Column 3: المهام الفرعية */}
+      <div className="rounded-xl flex flex-col overflow-hidden" style={{ background: columnBg[2] }}>
+        <div className="flex items-center justify-between px-4 py-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold text-gray-700">المهام الفرعية</span>
+            <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background:'rgba(0,0,0,0.1)', color:'#333' }}>
+              {selectedTask ? DATA.subtasks.filter(s => s.taskId === selectedTask.id).length : 0}
+            </span>
+          </div>
+          <button className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background:'rgba(0,0,0,0.08)', color:'#777' }}>
+            <Icon name="plus" className="w-3 h-3" />
+          </button>
+        </div>
+        <div className="col-body">
+          {!selectedTask ? (
+            <div className="text-center py-8 text-gray-400 text-xs">اختر مهمة رئيسية لعرض مهامها الفرعية</div>
+          ) : DATA.subtasks.filter(s => s.taskId === selectedTask.id).length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-xs">لا توجد مهام فرعية في هذه المهمة</div>
+          ) : DATA.subtasks.filter(s => s.taskId === selectedTask.id).map((s,i) => <SubtaskCard key={s.id} subtask={s} onSelect={onSelect} index={i} />)}
+        </div>
+      </div>
+
+      {/* Column 4: الأعضاء */}
+      <div className="rounded-xl flex flex-col overflow-hidden" style={{ background: columnBg[3] }}>
+        <div className="flex items-center justify-between px-4 py-2.5" style={{minHeight:'44px'}}>
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background:'rgba(0,0,0,0.1)', color:'#333' }}>{DATA.members.length}</span>
+            {[
+              { key:'all', icon:'list' },
+              { key:'active', icon:'userCheck' },
+              { key:'on_task', icon:'userTask' },
+            ].map(tab => (
+              <button key={tab.key} onClick={() => setMemberTab(tab.key)}
+                className={`w-6 h-6 rounded-md border-none flex items-center justify-center text-xs cursor-pointer transition-all ${tab.key === 'active' ? 'hover:bg-green-100' : tab.key === 'on_task' ? 'hover:bg-purple-100' : 'hover:bg-gray-300'}`}
+                style={{
+                  background: memberTab === tab.key ? (tab.key === 'active' ? '#d1fae5' : tab.key === 'on_task' ? '#ede9fe' : '#333') : 'rgba(0,0,0,0.06)',
+                  color: memberTab === tab.key ? (tab.key === 'active' ? '#059669' : tab.key === 'on_task' ? '#7c3aed' : '#fff') : '#777',
+                }}
+                title={tab.key === 'all' ? 'الكل' : tab.key === 'active' ? 'النشطون' : 'على المهام'}>
+                <Icon name={tab.icon} className="w-3.5 h-3.5" />
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1" dir="ltr">
+            <button className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background:'rgba(0,0,0,0.08)', color:'#777' }} title="إضافة عضو">
+              <Icon name="plus" className="w-3 h-3" />
+            </button>
+            <div className="w-5 h-5 rounded-full bg-red-500 flex items-center justify-center" title="إنذارات">
+              <Icon name="exclamation" className="w-3 h-3 text-white" />
+            </div>
+          </div>
+        </div>
+        <div className="col-body">
+          {filteredMembers.length === 0 ? (
+            <div className="text-center py-8 text-gray-400 text-xs">لا يوجد أعضاء</div>
+          ) : filteredMembers.map((m,i) => <MemberCard key={m.id} member={m} onSelect={onSelect} index={i} />)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── DETAIL MODAL ───
+function DetailModal({ item, type, onClose }) {
+  if (!item) return null;
+
+  const renderContent = () => {
+    if (type === 'project') return (
+      <div>
+        <h2 className="text-lg font-extrabold text-gray-800 mb-2">{item.title}</h2>
+        <p className="text-sm text-gray-500 leading-relaxed mb-4">{item.desc}</p>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-gray-800">{item.tasksCount}</div>
+            <div className="text-xs text-gray-500">مهام رئيسية</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-gray-800">{item.progress}%</div>
+            <div className="text-xs text-gray-500">إنجاز</div>
+          </div>
+        </div>
+        <div className="h-2 rounded-full mb-4" style={{ background:'#E0E0E0' }}>
+          <div className={`h-full rounded-full ${item.progress >= 100 ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width:`${item.progress}%` }} />
+        </div>
+        <div className="flex gap-2">
+          <span className="tag" style={{ background:'rgba(76,175,80,0.12)', color:'#2E7D32' }}>{item.status}</span>
+        </div>
+      </div>
+    );
+    if (type === 'task') return (
+      <div>
+        <h2 className="text-lg font-extrabold text-gray-800 mb-2">{item.title}</h2>
+        <p className="text-sm text-gray-500 leading-relaxed mb-4">{item.desc}</p>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-gray-800">{item.subtasksCount}</div>
+            <div className="text-xs text-gray-500">مهام فرعية</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-gray-800">{item.progress}%</div>
+            <div className="text-xs text-gray-500">إنجاز</div>
+          </div>
+        </div>
+        <div className="h-2 rounded-full mb-4" style={{ background:'#E0E0E0' }}>
+          <div className={`h-full rounded-full ${item.progress >= 100 ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width:`${item.progress}%` }} />
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">المسؤولون:</span>
+          {item.assignees.map((a,i) => (
+            <span key={i} className="flex items-center gap-1 text-xs bg-gray-100 rounded-md px-2 py-1">
+              <span className="w-4 h-4 rounded-full text-white text-[0.4rem] font-bold flex items-center justify-center" style={{ background:['#4CAF50','#8B5CF6','#E5A700'][i%3] }}>{a[0]}</span>
+              {a}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+    if (type === 'subtask') {
+      const cfg = statusConfig[item.status] || statusConfig.pending;
+      const images = item.images || [];
+      const avatarColors = ['#4A90D9','#8B5CF6','#4CAF50','#E5A700','#EF4444'];
+      const assignees = ['أحمد','سارة','خالد','فاطمة','عمر'];
+      const idx = assignees.indexOf(item.assignee);
+      const avColor = avatarColors[idx >= 0 ? idx : 0];
+      return (
+        <div className="space-y-5">
+          <h2 className="text-lg font-extrabold text-gray-900">{item.title}</h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${cfg.bg} ${cfg.color}`}>
+              <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {cfg.label}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+              <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+              {item.assignee}
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+              <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              {item.deadline}
+            </span>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            </div>
+            <p className="text-sm text-gray-600 leading-relaxed">{item.desc}</p>
+          </div>
+          {images.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zm16.5-13.5h-3.75V3.75h3.75V7.5z"/></svg>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {images.map((src, i) => (
+                  <div key={i} className="relative group rounded-xl overflow-hidden bg-gray-100 border border-gray-200" style={{ aspectRatio: '4/3' }}>
+                    <img src={src} alt={`صورة ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+                      <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 px-2 py-1 rounded-lg cursor-pointer">عرض</span>
+                      <a href={src} download className="text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 p-1.5 rounded-lg cursor-pointer hover:bg-black/60">
+                        <Icon name="download" className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (type === 'member') return (
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg" style={{ background: item.avatarBg }}>
+            {item.frozen ? <Icon name="snowflake" className="w-5 h-5" /> : <Icon name="user" className="w-5 h-5" />}
+          </div>
+          <div>
+            <h2 className="text-lg font-extrabold text-gray-800">{item.name}</h2>
+            <p className="text-sm text-gray-500">{item.role}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className="text-lg font-bold text-gray-800">{item.creditScore}/10</div>
+            <div className="text-xs text-gray-500">الرصيد</div>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-3 text-center">
+            <div className={`text-lg font-bold ${item.frozen ? 'text-red-500' : 'text-green-500'}`}>{item.frozen ? 'مجمّد' : 'نشط'}</div>
+            <div className="text-xs text-gray-500">الحالة</div>
+          </div>
+        </div>
+        {item.warnings > 0 && (
+          <div className="mt-3 bg-red-50 rounded-lg px-3 py-2 text-xs text-red-600 flex items-center gap-2">
+            <Icon name="exclamation" className="w-3.5 h-3.5" />
+            لديه {item.warnings} إنذار (إنذارات)
+          </div>
+        )}
+      </div>
+    );
+    return <p className="text-sm text-gray-500">نوع العنصر غير معروف</p>;
+  };
+
+  const openPage = () => {
+    const paths = { project:'/projects/', task:'/tasks/', subtask:'/subtasks/', member:'/users/' };
+    const url = paths[type] + item.id;
+    alert(`⟳ فتح في صفحة مستقلة: ${url}\n(في React الحقيقي: navigate('${url}'))`);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            {type === 'project' && <span className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold">م</span>}
+            {type === 'task' && <span className="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold">مه</span>}
+            {type === 'subtask' && <span className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-bold">فر</span>}
+            {type === 'member' && <span className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold">عض</span>}
+            <span className="text-xs text-gray-400">
+              {type === 'project' ? 'مشروع' : type === 'task' ? 'مهمة رئيسية' : type === 'subtask' ? 'مهمة فرعية' : 'عضو'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={openPage} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-none cursor-pointer transition-all hover:bg-gray-100" style={{ background:'#f0f0f0', color:'#555' }}>
+              <Icon name="external" className="w-3.5 h-3.5" /> فتح بصفحة
+            </button>
+            <button onClick={onClose} className="w-7 h-7 rounded-lg border-none flex items-center justify-center cursor-pointer hover:bg-gray-100" style={{ background:'#f0f0f0', color:'#888' }}>
+              <Icon name="xmark" className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+        {renderContent()}
+      </div>
+    </div>
+  );
+}
+
+// ─── PROJECT DETAILS & SETTINGS MODAL ───
+function ProjectSettingsModal({ project, onClose }) {
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(project.title);
+  const [images] = useState(project.images || []);
+
+  const handleEdit = () => {
+    alert(`⟳ تم تحديث اسم المشروع إلى: "${editTitle}"\n(في التطبيق الحقيقي: api.put('/projects/${project.id}', { title }))`);
+    setEditMode(false);
+  };
+
+  const handleArchive = () => {
+    if (confirm('هل أنت متأكد من أرشفة هذا المشروع؟')) {
+      alert(`⟳ تم أرشفة المشروع "${project.title}"\n(في التطبيق الحقيقي: api.post('/projects/${project.id}/archive'))`);
+      onClose();
+    }
+  };
+
+  const handleDelete = () => {
+    if (confirm('سيتم حذف المشروع بشكل نهائي. هل أنت متأكد؟')) {
+      alert(`⟳ تم حذف المشروع "${project.title}"\n(في التطبيق الحقيقي: api.delete('/projects/${project.id}/permanent'))`);
+      onClose();
+    }
+  };
+
+  const colors = { green:'bg-green-500', gold:'bg-amber-500', purple:'bg-purple-500' };
+  const fill = colors[project.statusColor] || 'bg-blue-500';
+  const statusColors = { green:'bg-green-100 text-green-700', gold:'bg-amber-100 text-amber-700', purple:'bg-purple-100 text-purple-700' };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px' }}>
+        {/* ── Header with Title ── */}
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold">م</span>
+            <h2 className="text-lg font-extrabold text-gray-900">{project.title}</h2>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg border-none flex items-center justify-center cursor-pointer hover:bg-gray-100" style={{ background:'#f0f0f0', color:'#888' }}>
+            <Icon name="xmark" className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* ── Stat Capsules under title ── */}
+        <div className="flex items-center gap-2 px-5 pb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">
+            <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            {project.tasksCount}
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+            <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            {project.progress}%
+          </span>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${statusColors[project.statusColor] || 'bg-gray-100 text-gray-700'}`}>
+            <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            {project.status}
+          </span>
+        </div>
+
+        <div className={`px-5 ${editMode ? '' : 'space-y-5 pb-5'}`}>
+          {editMode ? (
+            /* ── Edit Mode ── */
+            <div className="space-y-3 pb-5">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">اسم المشروع</label>
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm border border-gray-300 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all" style={{ fontFamily:'Cairo' }} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">وصف المشروع</label>
+                <textarea value={project.desc} rows={3}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm border border-gray-300 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all resize-none" style={{ fontFamily:'Cairo' }} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={handleEdit}
+                  className="pill-btn text-white" style={{ background:'#4A90D9' }}>حفظ التعديل</button>
+                <button onClick={() => setEditMode(false)}
+                  className="pill-btn" style={{ background:'#f0f0f0', color:'#666' }}>إلغاء</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* ── Full Description ── */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{project.desc}</p>
+              </div>
+
+              {/* ── Progress Bar ── */}
+              {project.progress > 0 && (
+                <div>
+                  <div className="h-2 rounded-full" style={{ background:'#E0E0E0' }}>
+                    <div className={`h-full rounded-full ${fill}`} style={{ width: `${project.progress}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Images ── */}
+              {images.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zm16.5-13.5h-3.75V3.75h3.75V7.5z"/></svg>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {images.map((src, i) => (
+                      <div key={i} className="relative group rounded-xl overflow-hidden bg-gray-100 border border-gray-200" style={{ aspectRatio: '4/3' }}>
+                        <img src={src} alt={`صورة المشروع ${i + 1}`}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+                          <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 px-2 py-1 rounded-lg cursor-pointer">عرض</span>
+                          <a href={src} download className="text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 p-1.5 rounded-lg cursor-pointer hover:bg-black/60">
+                            <Icon name="download" className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── Footer: Actions & Downloads ── */}
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setEditMode(true)}
+              className="w-9 h-9 rounded-xl border-none flex items-center justify-center cursor-pointer transition-all hover:bg-blue-100" style={{ background:'#f0f4ff', color:'#4A90D9' }} title="تعديل">
+              <Icon name="pencil" className="w-4 h-4" />
+            </button>
+            <button onClick={handleArchive}
+              className="w-9 h-9 rounded-xl border-none flex items-center justify-center cursor-pointer transition-all hover:bg-amber-100" style={{ background:'#fff8ed', color:'#D48A00' }} title="أرشفة">
+              <Icon name="archive" className="w-4 h-4" />
+            </button>
+            <button onClick={handleDelete}
+              className="w-9 h-9 rounded-xl border-none flex items-center justify-center cursor-pointer transition-all hover:bg-red-100" style={{ background:'#fef2f2', color:'#EF4444' }} title="حذف">
+              <Icon name="trash" className="w-4 h-4" />
+            </button>
+          </div>
+          {images.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              {images.map((src, i) => (
+                <a key={i} href={src} download
+                  className="w-8 h-8 rounded-lg border-none flex items-center justify-center cursor-pointer transition-all hover:bg-gray-200" style={{ background:'#f0f0f0', color:'#888' }} title={`تحميل الملف ${i + 1}`}>
+                  <Icon name="download" className="w-3.5 h-3.5" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TASK SETTINGS MODAL ───
+function TaskSettingsModal({ task, onClose }) {
+  const [editMode, setEditMode] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [images] = useState(task.images || []);
+
+  const handleEdit = () => {
+    alert(`⟳ تم تحديث اسم المهمة إلى: "${editTitle}"\n(في التطبيق الحقيقي: api.put('/tasks/${task.id}', { title }))`);
+    setEditMode(false);
+  };
+
+  const handleDelete = () => {
+    if (confirm('سيتم حذف المهمة وجميع مهامها الفرعية. هل أنت متأكد؟')) {
+      alert(`⟳ تم حذف المهمة "${task.title}"\n(في التطبيق الحقيقي: api.delete('/tasks/${task.id}'))`);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '580px' }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-sm font-bold">مه</span>
+            <h2 className="text-lg font-extrabold text-gray-900">{task.title}</h2>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-lg border-none flex items-center justify-center cursor-pointer hover:bg-gray-100" style={{ background:'#f0f0f0', color:'#888' }}>
+            <Icon name="xmark" className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 px-5 pb-4">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+            <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 3-3m-6 6h6"/></svg>
+            {task.subtasksCount} فرعية
+          </span>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">
+            <svg className="w-3.5 h-3.5" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="2"><path d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            {task.progress}%
+          </span>
+        </div>
+
+        <div className="px-5 space-y-5 pb-5">
+          {editMode ? (
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">اسم المهمة</label>
+                <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg text-sm border border-gray-300 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all" style={{ fontFamily:'Cairo' }} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button onClick={handleEdit}
+                  className="pill-btn text-white" style={{ background:'#E5A700' }}>حفظ التعديل</button>
+                <button onClick={() => setEditMode(false)}
+                  className="pill-btn" style={{ background:'#f0f0f0', color:'#666' }}>إلغاء</button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+                </div>
+                <p className="text-sm text-gray-600 leading-relaxed">{task.desc}</p>
+              </div>
+
+              {task.progress >= 0 && (
+                <div>
+                  <div className="h-2 rounded-full" style={{ background:'#E0E0E0' }}>
+                    <div className={`h-full rounded-full ${task.progress >= 100 ? 'bg-green-500' : task.progress >= 50 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${task.progress}%` }} />
+                  </div>
+                </div>
+              )}
+
+              {images.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <svg className="w-4 h-4 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 24 24" stroke-width="1.5"><path d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21zm16.5-13.5h-3.75V3.75h3.75V7.5z"/></svg>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {images.map((src, i) => (
+                      <div key={i} className="relative group rounded-xl overflow-hidden bg-gray-100 border border-gray-200" style={{ aspectRatio: '4/3' }}>
+                        <img src={src} alt={`صورة ${i + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center gap-2">
+                          <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 px-2 py-1 rounded-lg cursor-pointer">عرض</span>
+                          <a href={src} download className="text-white opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 p-1.5 rounded-lg cursor-pointer hover:bg-black/60">
+                            <Icon name="download" className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100">
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setEditMode(true)}
+              className="w-9 h-9 rounded-xl border-none flex items-center justify-center cursor-pointer transition-all hover:bg-amber-100" style={{ background:'#fff8ed', color:'#D48A00' }} title="تعديل">
+              <Icon name="pencil" className="w-4 h-4" />
+            </button>
+            <button onClick={handleDelete}
+              className="w-9 h-9 rounded-xl border-none flex items-center justify-center cursor-pointer transition-all hover:bg-red-100" style={{ background:'#fef2f2', color:'#EF4444' }} title="حذف">
+              <Icon name="trash" className="w-4 h-4" />
+            </button>
+          </div>
+          {images.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              {images.map((src, i) => (
+                <a key={i} href={src} download
+                  className="w-8 h-8 rounded-lg border-none flex items-center justify-center cursor-pointer transition-all hover:bg-gray-200" style={{ background:'#f0f0f0', color:'#888' }} title={`تحميل الملف ${i + 1}`}>
+                  <Icon name="download" className="w-3.5 h-3.5" />
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: ADMIN ───
+function AdminTab() {
+  const [adminTab, setAdminTab] = useState('users');
+  return (
+    <div className="p-6 h-full overflow-y-auto text-gray-700">
+      <div className="flex gap-2 mb-4">
+        {['users','roles'].map(t => (
+          <button key={t} onClick={() => setAdminTab(t)}
+            className="pill-btn text-white" style={{
+              background: adminTab === t ? '#4A90D9' : 'rgba(255,255,255,0.1)',
+              color: adminTab === t ? '#fff' : 'rgba(255,255,255,0.6)',
+            }}>
+            {t === 'users' ? 'المستخدمين' : 'الأدوار'}
+          </button>
+        ))}
+      </div>
+      {adminTab === 'users' ? (
+        <div className="bg-white rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead><tr className="border-b bg-gray-50">{['الاسم','البريد','الدور','الرصيد','الحالة'].map(h => <th key={h} className="text-right px-4 py-3 text-xs font-bold text-gray-500">{h}</th>)}</tr></thead>
+            <tbody>{DATA.members.map(m => (
+              <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3 font-bold text-gray-800">{m.name}</td>
+                <td className="px-4 py-3 text-gray-500">{m.name}@email.com</td>
+                <td className="px-4 py-3 text-gray-600">{m.role}</td>
+                <td className="px-4 py-3"><span className="font-bold">{m.creditScore}/10</span></td>
+                <td className="px-4 py-3"><span className={`tag text-[0.55rem] ${m.frozen ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>{m.frozen ? 'مجمّد' : 'نشط'}</span></td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-4">
+          {[1,2,3].map(r => (
+            <div key={r} className="bg-white rounded-xl p-4">
+              <h3 className="font-bold text-gray-800 mb-2">{['مدير','نائب مدير','موظف'][r-1]}</h3>
+              <p className="text-xs text-gray-500">{r === 1 ? 'جميع الصلاحيات' : `${r * 4} صلاحية`}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── TAB: WARNINGS ───
+function WarningsTab() {
+  return (
+    <div className="p-6 h-full overflow-y-auto text-gray-700">
+      <div className="bg-white rounded-xl overflow-hidden">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b bg-gray-50">{['الموظف','السبب','النقاط','الحالة','التاريخ'].map(h => <th key={h} className="text-right px-4 py-3 text-xs font-bold text-gray-500">{h}</th>)}</tr></thead>
+          <tbody>
+            {[
+              { user:'خالد يوسف', reason:'تأخير تسليم 3 مهام', points:3, status:'sustained', date:'2026-04-28' },
+              { user:'فاطمة حسن', reason:'عدم الالتزام بالتعليمات', points:2, status:'pending', date:'2026-05-01' },
+            ].map((w,i) => (
+              <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3 font-bold text-gray-800">{w.user}</td>
+                <td className="px-4 py-3 text-gray-500">{w.reason}</td>
+                <td className="px-4 py-3"><span className="font-bold text-red-600">-{w.points}</span></td>
+                <td className="px-4 py-3"><span className={`tag text-[0.55rem] ${w.status === 'sustained' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{w.status === 'sustained' ? 'مؤكد' : 'قيد المراجعة'}</span></td>
+                <td className="px-4 py-3 text-gray-400 text-xs">{w.date}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ─── TAB: SETTINGS ───
+function SettingsTab() {
+  return (
+    <div className="p-6 h-full overflow-y-auto text-gray-700">
+      <div className="bg-white rounded-xl p-6 max-w-md">
+        <h3 className="font-bold text-gray-800 mb-4">الملف الشخصي</h3>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg" style={{ background:'#4A90D9' }}>
+            <Icon name="user" className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="font-bold text-gray-800">أحمد بن علي</div>
+            <div className="text-xs text-gray-500">مدير عام</div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {[{label:'الاسم', value:'أحمد بن علي'},{label:'البريد', value:'ahmed@ingaz.com'},{label:'الرصيد', value:'10/10'}].map(f => (
+            <div key={f.label}>
+              <label className="text-xs text-gray-500 block mb-0.5">{f.label}</label>
+              <div className="w-full px-3 py-2 rounded-lg text-sm bg-gray-50 text-gray-700">{f.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── NOTIFICATION BAR ───
+function NotifBar({ notif, onClose, index, colorTheme, setColorTheme }) {
+  if (!notif) return null;
+  const colors = ['#4A90D9','#E5A700','#4CAF50','#EF4444'];
+  const [bellHover, setBellHover] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const paletteRef = useRef(null);
+
+  useEffect(() => {
+    if (!paletteOpen) return;
+    const handler = e => { if (paletteRef.current && !paletteRef.current.contains(e.target)) setPaletteOpen(false) };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [paletteOpen]);
+
+  const themeOptions = [
+    { key:'default', colors:['#D5D8DC','#DFE2E6','#EAECEF','#F4F5F7'] },
+    { key:'slate',   colors:['#CBD5E1','#94A3B8','#64748B','#475569'] },
+    { key:'emerald', colors:['#A7F3D0','#6EE7B7','#34D399','#10B981'] },
+    { key:'rose',    colors:['#FECDD3','#FDA4AF','#FB7185','#F43F5E'] },
+    { key:'amber',   colors:['#FDE68A','#FCD34D','#FBBF24','#F59E0B'] },
+    { key:'indigo',  colors:['#C7D2FE','#A5B4FC','#818CF8','#6366F1'] },
+  ];
+
+  return (
+    <div className="flex items-center justify-between mx-2.5 mb-2 px-3.5 py-0 rounded-lg anim-fade" style={{ background:'rgba(255,255,255,0.04)', height:'36px' }}>
+      <button onClick={onClose}
+        onMouseEnter={() => setBellHover(true)}
+        onMouseLeave={() => setBellHover(false)}
+        className="w-7 h-7 rounded-full border-none flex items-center justify-center cursor-pointer transition-all shrink-0"
+        style={{ background: bellHover ? '#EF4444' : '#fff' }}>
+        <Icon name={bellHover ? 'trash' : 'bell'} className="w-3.5 h-3.5" style={{ color: bellHover ? '#fff' : '#333' }} />
+      </button>
+      <div className="flex-1 px-4 text-xs truncate" style={{ color:'rgba(255,255,255,0.5)' }}>
+        <span className="w-2 h-2 rounded-full inline-block ml-1.5" style={{ background: colors[index % colors.length] }} />
+        {notif}
+      </div>
+      <div className="relative flex items-center">
+        <button onClick={() => setPaletteOpen(!paletteOpen)}
+          className="w-6 h-6 rounded-md border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-white hover:bg-opacity-20" style={{ background:'rgba(255,255,255,0.06)', color:'rgba(255,255,255,0.5)' }}>
+          <Icon name="palette" className="w-3 h-3" />
+        </button>
+        {paletteOpen && (
+          <div ref={paletteRef}
+            className="absolute bottom-full ltr:right-0 rtl:left-0 mb-1.5 p-2 rounded-xl shadow-xl anim-fade flex gap-1.5"
+            style={{ background:'rgba(30,30,50,0.95)', border:'1px solid rgba(255,255,255,0.1)' }}>
+            {themeOptions.map(t => (
+              <button key={t.key} onClick={() => { setColorTheme(t.key); setPaletteOpen(false) }}
+                className="w-7 h-7 rounded-lg border-2 cursor-pointer transition-all hover:scale-110 p-0.5 flex items-center justify-center overflow-hidden"
+                style={{ borderColor: colorTheme === t.key ? '#fff' : 'transparent', background:t.colors[0] }}>
+                <div className="flex gap-px">
+                  {t.colors.map((c,i) => <div key={i} className="w-1.5 h-4 rounded-sm" style={{ background:c }} />)}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── APP ───
+function App() {
+  const [activeTab, setActiveTab] = useState('operations');
+  const [memberTab, setMemberTab] = useState('all');
+  const [modal, setModal] = useState({ type:null, item:null });
+  const [settingsProject, setSettingsProject] = useState(null);
+  const [settingsTask, setSettingsTask] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [notifIndex, setNotifIndex] = useState(0);
+  const [notifVisible, setNotifVisible] = useState(true);
+  const [colorTheme, setColorTheme] = useState('default');
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNotifIndex(prev => {
+        if (prev >= DATA.notifications.length - 1) {
+          clearInterval(interval);
+          return prev;
+        }
+        return prev + 1;
+      });
+      setNotifVisible(true);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const closeNotif = () => setNotifVisible(false);
+
+  const handleSelect = (type, item) => {
+    if (type === 'project') {
+      setSelectedProject(item);
+      setSelectedTask(null);
+    } else if (type === 'task') {
+      setSelectedTask(item);
+    } else {
+      setModal({ type, item });
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'operations') {
+      setSelectedProject(null);
+      setSelectedTask(null);
+    }
+  }, [activeTab]);
+
+  return (
+    <div className="app-layout">
+      <BoardHeader activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {activeTab === 'operations' && (
+        <Board
+          onSelect={handleSelect}
+          memberTab={memberTab}
+          setMemberTab={setMemberTab}
+          selectedProject={selectedProject}
+          selectedTask={selectedTask}
+          onSettingsProject={setSettingsProject}
+          onSettingsTask={setSettingsTask}
+          colorTheme={colorTheme}
+        />
+      )}
+      {activeTab === 'admin' && <AdminTab />}
+      {activeTab === 'warnings' && <WarningsTab />}
+      {activeTab === 'settings' && <SettingsTab />}
+
+      {notifVisible && <NotifBar notif={DATA.notifications[notifIndex]} onClose={closeNotif} index={notifIndex} colorTheme={colorTheme} setColorTheme={setColorTheme} />}
+
+      <DetailModal item={modal.item} type={modal.type} onClose={() => setModal({ type:null, item:null })} />
+      {settingsProject && (
+        <ProjectSettingsModal
+          project={settingsProject}
+          onClose={() => setSettingsProject(null)}
+        />
+      )}
+      {settingsTask && (
+        <TaskSettingsModal
+          task={settingsTask}
+          onClose={() => setSettingsTask(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(App));
+</script>
+</body>
+</html>
