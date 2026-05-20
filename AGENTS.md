@@ -8,7 +8,10 @@ start.bat seed                     # Refresh permissions only (safe anytime)
 cd server && npm run dev           # dev with tsx watch (auto-reloads on .ts changes)
 cd client && npm run dev           # Vite dev server (HMR)
 cd server && npm run test          # run unit/integration tests (43 tests)
-cd server && npm run backup        # backup database
+cd server && npm run typecheck     # server TypeScript check
+cd client && npm run typecheck     # client TypeScript check
+cd server && npm run lint          # server ESLint
+cd client && npm run lint          # client ESLint
 ```
 
 ## Test accounts
@@ -31,121 +34,134 @@ Then `npm run lint` and fix warnings.
 ```
 Bigg/
 ├── client/        # React + Vite (port 5173)
-├── server/        # Express + SQLite (port 3001)
+├── server/        # Express + PostgreSQL (port 3001)
 ├── shared/        # types.ts — shared TypeScript interfaces
 ├── uploads/       # uploaded files (served statically)
+├── analysis/      # atomic analysis (11 sections)
+├── docs/          # plans and handoff documents
 └── start.bat      # kill old processes, start both
 ```
 
 ### Route mounting (server/src/index.ts)
-Routes are mounted under **both** `/api` and `/api/v1`. All paths in code are relative to those prefixes.
+Routes mounted under **both** `/api` and `/api/v1`.
 ```
 GET /api/v1/projects/14/members  →  routes/projects.ts :: /:id/members
 ```
 
-### Key chain of middleware (applied per-route):
+### Key chain of middleware
 `authenticate` → `checkFrozen` → `requireCredit(field)` → `authorize(...roleIds)` → handler
 
+### res.success() middleware (server/src/index.ts:113)
+Applies `camelToSnake()` **automatically** to all responses. Any `camelToSnake()` calls in services are redundant (but harmless).
+
 ### Real-time
-Socket.io for live updates. Server emits `list:update` (project/task/subtask CRUD) and `subtask:updated`. Client connects automatically via `lib/socket.ts`.
+Socket.io for live updates. Events: `list:update`, `subtask:updated`. Client via `lib/socket.ts`.
 
 ### Vite proxy (client/vite.config.ts)
 Routes `/api`, `/socket.io`, `/uploads` → `http://localhost:3001`
 
-## The task assignment system
+## Known Framework Quirks (PostgreSQL + Drizzle)
+- **Database**: PostgreSQL via `drizzle-orm/node-postgres` + `pg` Pool
+- **DB URL**: `DATABASE_URL` env var (e.g., `postgres://user:pass@host:5432/ingaz`)
+- **Schema**: `server/src/db/schema.ts` — Drizzle ORM table definitions
+- **Migrations**: `drizzle-kit` generates SQL files in `server/drizzle/`
+- **No SQLite**: The code was migrated FROM SQLite (better-sqlite3) TO PostgreSQL. Old references in tests may remain.
+- **Seed**: `server/src/seed.ts` — populates roles, users, permissions, warning types, restriction levels
+- **JWT**: `Authorization: Bearer <token>` header (NOT cookies). No `withCredentials: true`.
+- **Token expiry**: 7 days. Blacklist on logout (DB-backed `token_blacklist` table, in-memory Map too).
+- `erasableSyntaxOnly: true` — no `public`/`private`/`protected` on constructor params
+- `verbatimModuleSyntax: true` — requires `.js` in relative imports
 
-### Roles (defined identically client + server)
+## Execution Plan (docs/EXECUTION-PLAN.md)
+
+### 6 Phases — 16 Problems
+| Phase | Focus | Problems | Status |
+|-------|-------|----------|--------|
+| 1 | Critical Security Fixes | C1-C4 (JWT fallback, cookie-parser, FK, setup.ts) | ⏳ Pending |
+| 2 | Auth & Transactions | 5, 6, 10 (blacklist, transactions, tests) | ⏳ Pending |
+| 3 | Client State & Performance | 7, 8, 9, 12 (socket stores, errors, N+1, domains) | ⏳ Pending |
+| 4 | Testing Expansion | New test files (middleware, projects, users) | ⏳ Pending |
+| 5 | Code Quality & Refactoring | 11, 13, 16 (statusConfig, repository, typing) | ⏳ Pending |
+| 6 | Infrastructure & DevOps | 14, 15 (background jobs, package-lock, Docker) | ⏳ Pending |
+
+### Custom Agents (.opencode/agents/)
+| Agent | Purpose |
+|-------|---------|
+| `security-agent` | Fix security vulnerabilities |
+| `db-agent` | Handle Drizzle schema + migrations |
+| `client-agent` | Improve React components + stores |
+| `docs-agent` | Write documentation |
+
+### Custom Skills (.opencode/skills/)
+| Skill | Purpose |
+|-------|---------|
+| `phase-verify` | Run typecheck + lint + test after each phase |
+| `phase-document` | Write phase completion markdown |
+| `session-handoff` | Create context handoff for new sessions |
+| `git-commit` | Commit phase changes |
+
+### Per-Phase Workflow
 ```
-ADMIN   = 1   # full access, no membership needed
-DEPUTY  = 2   # same as ADMIN for task creation
-EMPLOYEE = 3  # needs project membership to create tasks
-```
-
-### Project membership (`project_members` table)
-- **Who can assign:** ADMIN or DEPUTY only (checked via `authorize(ROLES.ADMIN, ROLES.DEPUTY)`)
-- **Who gets assigned:** Only EMPLOYEE users (`role_id === 3`). ADMIN/DEPUTY don't need membership.
-- **Role value:** Always `'manager'` (the column supports `'manager'` / `'member'` but only `'manager'` is used)
-- **API:** `GET|POST|DELETE /projects/:id/members`
-- **Duplicate prevention:** SQLite UNIQUE(project_id, user_id) constraint → 409
-
-### Task creation gating (`server/src/routes/tasks.ts:49`)
-```typescript
-if (req.user.role_id === ROLES.EMPLOYEE && !isProjectManager(req.user.id, project_id)) {
-  return res.fail(403, 'لا تملك صلاحية إنشاء مهام في هذا المشروع');
-}
-```
-- ADMIN/DEPUTY: create tasks in any project, any project's tasks
-- EMPLOYEE: must be project member (checked via `isProjectManager()` in `server/src/db.ts:291`)
-
-### Subtask creation gating (`server/src/routes/subtasks.ts:62`)
-Same logic: EMPLOYEE must be project manager of the task's parent project.
-
-### Credit / restriction layer
-All task/subtask creation also passes `requireCredit('can_create_tasks')`. Users with low credit scores may be restricted regardless of membership.
-
-### UI member dropdown filter (both ProjectSettingsModal.tsx and ProjectDetail.tsx)
-```typescript
-users.filter(u => u.role_id === 3 && !members.some(m => m.user_id === u.id))
-```
-Only EMPLOYEEs not already members appear as click-to-add buttons.
-
-## Key files for the assignment system
-| File | Purpose |
-|------|---------|
-| `shared/types.ts` | ProjectMember, ProjectDetail, User, ROLES_VALUES |
-| `server/src/db.ts:291` | `isProjectManager()` — the central gating function |
-| `server/src/routes/projects.ts:127-166` | Members CRUD (GET/POST/DELETE /:id/members) |
-| `server/src/routes/tasks.ts:49` | EMPLOYEE membership check on task creation |
-| `server/src/routes/subtasks.ts:62` | EMPLOYEE membership check on subtask creation |
-| `server/src/middleware/auth.ts` | authenticate, authorize, requireCredit, checkFrozen |
-| `client/src/components/ProjectSettingsModal.tsx` | Member management UI in settings modal |
-| `client/src/pages/ProjectDetail.tsx` | Member management UI in project detail page |
-
-## Service Layer (`server/src/services/`)
-
-### Architecture
-Route handlers are thin wrappers. Business logic lives in service classes:
-
-```
-routes/*.ts  →  validate/auth middleware  →  service method  →  response
+1. Load context (AGENTS.md + latest docs/)
+2. Execute fixes (parallel task agents when possible)
+3. phase-verify (typecheck + lint + test)
+4. phase-document (write docs/phase-N-*.md)
+5. git-commit
+6. session-handoff if context full → open new session
 ```
 
-Each service:
-- Extends `BaseService(db)` where `db` is the `better-sqlite3` instance
-- Throws `AppError(statusCode, message)` for business rule failures
-- Accepts `ServiceContext` for operations needing user context + socket.io
-- Handles activity logs, notifications, and socket events internally
+## Problems Discovered (from analysis/)
 
-### Services overview
-| Service | Route file | Key methods |
-|---------|-----------|-------------|
-| `ProjectService` | `routes/projects.ts` | list, getById, create, update, archive, permanentDelete, getMembers, addMember, removeMember |
-| `TaskService` | `routes/tasks.ts` | list, listByProject, create, update, archive, getAssignees, addAssignee, removeAssignee |
-| `SubtaskService` | `routes/subtasks.ts` | list, listByTask, getById, create, update, delete, getAssignees, addAssignee, removeAssignee |
-| `CommentService` | `routes/comments.ts` | getBySubtask, create |
-| `UserService` | `routes/users.ts` | list, create, update, archive, restore |
-| `AuthService` | `routes/auth.ts` | login, me, updateProfile, updateAvatar, logout |
-| `WarningService` | `routes/warnings.ts` | listWarningTypes, create/update/deleteWarningType, listLevels, updateLevel, listCreditScores, getMyLevel, list, listMy, create, respond, clear, sustain, getFreezeStatus, unfreeze |
-| `NotificationService` | `routes/notifications.ts` | list, unreadCount, markRead, markAllRead, getPreferences, updatePreference, dailySummary, updateBatchTypes |
-| `UploadService` | `routes/upload.ts` | upload, getFiles, getFilesBulk, deleteFile |
-| `RoleService` | `routes/roles.ts` | list, create, update, delete, getPermissions, updatePermissions, listAllPermissions |
-| `AnalyticsService` | `routes/analytics.ts` | dashboard |
+### 🔴 Critical
+| # | Problem | Location | Fix |
+|---|---------|----------|-----|
+| C1 | JWT_SECRET 'fallback-secret' hardcoded | `server/src/index.ts` | Remove fallback, validate env |
+| C2 | cookie-parser imported but not used | `server/src/index.ts` | `app.use(cookieParser())` |
+| C3 | subtasks.winnerCommentId missing FK | `server/src/db/schema.ts:60` | Add FK → comments.id |
+| C4 | Dual migration system → schema drift | `server/src/db/setup.ts` | Unify migration logic |
 
-### Helper types
-- `AppError` — throw from services with HTTP status code
-- `ServiceContext` — `{ userId, roleId, userName?, userAvatar?, io? }`
-- `tryCatch(handler)` — wraps route handlers to catch `AppError` → `res.fail()`
+### 🟡 High Priority
+| # | Problem | Location |
+|---|---------|----------|
+| 5 | No token_blacklist check in authenticate | `server/src/middleware/auth.ts` |
+| 6 | No transactions in complex operations | `server/src/services/*.ts` |
+| 7 | N+1 in CSV export | `client/src/components/ProjectSettingsModal.tsx` |
+| 8 | Socket events don't update stores directly | `client/src/lib/socket.ts`, `client/src/store/*.ts` |
+| 9 | No Error Boundaries on most pages | `client/src/pages/*.tsx` |
+| 10 | Low test coverage (43 tests) | `server/src/__tests__/` |
 
-## Code style (from .prettierrc)
-- no semicolons, single quotes, trailing commas
-- 120 char width, 2-space indent
-- avoid parens on single-param arrow functions
+### 🟢 Nice to Have
+| # | Problem | Location |
+|---|---------|----------|
+| 11 | statusConfig duplicated 6+ times | `client/src/components/` |
+| 12 | No domain stores (useState everywhere) | `client/src/store/` |
+| 13 | No Repository layer | `server/src/services/` |
+| 14 | No background job queue | `server/src/` |
+| 15 | No package-lock.json | `server/` |
+| 16 | Notification.related: any | `shared/types.ts` |
 
-## Framework quirks
-- `tsx watch` auto-reloads on .ts changes (but NOT if server was started before code changes — kill old process first)
-- `shared/` is imported as `@shared/types` in client, resolved via Vite alias
-- DB is SQLite via `better-sqlite3` (synchronous). Schema auto-migrates on server start in `db.ts`
-- JWT in `Authorization: Bearer` header (NOT cookies). No `withCredentials: true` needed.
-- Token expiry: 7 days. Blacklist on logout.
-- No migration tool — schema is defined inline in `db.ts`
-- `erasableSyntaxOnly: true` in tsconfig — no `public`/`protected`/`private` on constructor params or methods; use explicit field assignment instead
+## Relevant Files
+### Server
+- `server/src/index.ts` — Express setup, res.success(), Socket.IO, route mounting
+- `server/src/db/schema.ts` — Drizzle ORM schema (21 tables)
+- `server/src/db/setup.ts` — migration + seed orchestration
+- `server/src/middleware/auth.ts` — authenticate, authorize, requireCredit, checkFrozen
+- `server/src/routes/*.ts` — 10 route files (thin wrappers)
+- `server/src/services/*.ts` — 10 service files (business logic)
+- `server/src/seed.ts` — database seeding
+- `server/src/__tests__/` — auth.test.ts (6), tasks.test.ts (16), warnings.test.ts (21)
+
+### Client
+- `client/src/store/authStore.ts` — persisted Zustand store
+- `client/src/store/appStore.ts` — ephemeral Zustand store
+- `client/src/lib/socket.ts` — Socket.io singleton
+- `client/src/lib/api.ts` — Axios instance + interceptors
+- `client/src/pages/*.tsx` — 8 page components
+- `client/src/components/*.tsx` — ~25 components
+
+### Shared
+- `shared/types.ts` — 16 interfaces + ROLES_VALUES
+
+### Analysis
+- `analysis/` — 11 sections, 14 markdown files
+- `docs/EXECUTION-PLAN.md` — full execution plan

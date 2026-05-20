@@ -15,6 +15,7 @@ import { ROLES, CREDIT } from './constants.js';
 import { getDb, schema } from './db/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
+import cookieParser from 'cookie-parser';
 import { isBlacklisted, getCreditLevel, clearFrozenCache } from './middleware/auth.js';
 import { notifyUser } from './notify.js';
 import { runMigrations } from './migrate.js';
@@ -91,6 +92,7 @@ app.use(helmet({
 
 app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 app.use(requestId);
 
 const pinoLogger = (req: any, res: any, next: any) => {

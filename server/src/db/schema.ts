@@ -57,7 +57,7 @@ export const subtasks = pgTable('subtasks', {
   assignedTo: integer('assigned_to').references(() => users.id),
   status: text('status').default('open'),
   deadline: timestamp('deadline'),
-  winnerCommentId: integer('winner_comment_id'),
+  winnerCommentId: integer('winner_comment_id').references((): any => comments.id),
   createdAt: timestamp('created_at').defaultNow(),
 }, table => [
   check('subtasks_status_check',

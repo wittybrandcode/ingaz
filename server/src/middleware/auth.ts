@@ -6,7 +6,7 @@ import { eq, and, lte, sql } from 'drizzle-orm'
 import { getDb, schema } from '../db/index.js'
 import { ROLES, TOKEN } from '../constants.js'
 
-const JWT_SECRET: string = process.env.JWT_SECRET || ''
+const JWT_SECRET: string = process.env.JWT_SECRET!
 
 const tokenBlacklist = new Map<string, number>()
 const frozenCache = new Map<number, { frozen_at: string | null; expiry: number }>()
