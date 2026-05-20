@@ -116,7 +116,7 @@ async function main() {
     }
   }
 
-  const employeeOnly = ['projects.view', 'tasks.view', 'subtasks.view', 'tasks.create', 'tasks.edit', 'subtasks.create', 'comments.create']
+  const employeeOnly = ['projects.view', 'tasks.view', 'subtasks.view', 'tasks.create', 'tasks.edit', 'subtasks.create', 'subtasks.submit', 'comments.create']
   for (const p of allPerms) {
     if (employeeOnly.some(k => p.key === k)) {
       await db.insert(schema.rolePermissions).values({ roleId: ROLES.EMPLOYEE, permissionId: p.id }).onConflictDoNothing()

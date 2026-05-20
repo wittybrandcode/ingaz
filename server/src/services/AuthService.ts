@@ -5,6 +5,7 @@ import { eq, and, inArray, sql } from 'drizzle-orm'
 import { BaseService, AppError } from './BaseService.js'
 import { generateToken, blacklistToken } from '../middleware/auth.js'
 import { setDefaultPrefs } from '../notify.js'
+import { camelToSnake } from '../lib/case-transform.js'
 import { schema, getUserPermissions } from '../db/index.js'
 
 export interface LoginResult {
@@ -53,7 +54,7 @@ export class AuthService extends BaseService {
     const { password: _, ...userData } = user
     const permissions = await getUserPermissions(user.id)
 
-    return { user: { ...userData, permissions }, token }
+    return { user: camelToSnake({ ...userData, permissions }), token }
   }
 
   async me(userId: number) {
@@ -75,7 +76,7 @@ export class AuthService extends BaseService {
       .limit(1)
     if (!user) throw new AppError(404, 'المستخدم غير موجود')
     const permissions = await getUserPermissions(userId)
-    return { ...user, permissions }
+    return camelToSnake({ ...user, permissions })
   }
 
   async updateProfile(userId: number, data: { name?: string; password?: string; avatar?: string }) {

@@ -291,7 +291,7 @@ export class ProjectService extends BaseService {
   }
 
   async getMembers(projectId: number) {
-    return this.db
+    const rows = await this.db
       .select({
         id: schema.projectMembers.id,
         projectId: schema.projectMembers.projectId,
@@ -309,6 +309,7 @@ export class ProjectService extends BaseService {
       .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(eq(schema.projectMembers.projectId, projectId))
       .orderBy(sql`${schema.projectMembers.createdAt} DESC`)
+    return camelToSnake(rows)
   }
 
   async addMember(projectId: number, userId: number, ctx?: ServiceContext) {
@@ -355,7 +356,7 @@ export class ProjectService extends BaseService {
         })
       }
 
-      return enriched
+      return camelToSnake(enriched)
     } catch (e: any) {
       if (e.code === '23505') throw new AppError(409, 'المستخدم مضاف مسبقاً')
       throw e

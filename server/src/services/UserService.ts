@@ -4,6 +4,7 @@ import { PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, addActivityLog } from '../db/index.js'
+import { camelToSnake } from '../lib/case-transform.js'
 import { notifyAll, setDefaultPrefs } from '../notify.js'
 
 export class UserService extends BaseService {
@@ -40,7 +41,7 @@ export class UserService extends BaseService {
       .limit(pageSize)
       .offset(offset)
 
-    return { data: users, total, pages: Math.ceil(total / pageSize), page, pageSize }
+    return { data: camelToSnake(users), total, pages: Math.ceil(total / pageSize), page, pageSize }
   }
 
   async create(data: { name: string; email: string; password: string; roleId: number; status?: string }, ctx: ServiceContext) {
