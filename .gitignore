@@ -8,6 +8,7 @@ uploads/
 server/uploads/
 server/src/uploads/
 server/data/
+.git_disabled/
 
 # Editor
 .vscode/

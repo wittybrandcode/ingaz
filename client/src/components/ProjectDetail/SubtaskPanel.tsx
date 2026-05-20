@@ -178,9 +178,19 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
         </form>
       )}
 
-      {subtasks.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">
-          <p>لا توجد مهام فرعية</p>
+      {subtasks.length === 0 && !subForm ? (
+        <div className="text-center py-16 text-gray-400">
+          {isManager ? (
+            <button onClick={() => { setSubForm(true); setEditSub(null) }}
+              className="inline-flex flex-col items-center gap-3 text-indigo-500 hover:text-indigo-700 transition-colors">
+              <div className="w-16 h-16 rounded-full border-2 border-dashed border-indigo-400 flex items-center justify-center hover:bg-indigo-50">
+                <Plus className="w-8 h-8" />
+              </div>
+              <span className="text-sm font-medium">إضافة مهمة فرعية جديدة</span>
+            </button>
+          ) : (
+            <p>لا توجد مهام فرعية</p>
+          )}
         </div>
       ) : (
         <div className="space-y-3">

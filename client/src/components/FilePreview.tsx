@@ -27,8 +27,8 @@ export default function FilePreview({ files, initialIndex = 0, onClose, onAccept
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowLeft') isRTL ? next() : prev()
-      if (e.key === 'ArrowRight') isRTL ? prev() : next()
+      if (e.key === 'ArrowLeft') { if (isRTL) next(); else prev() }
+      if (e.key === 'ArrowRight') { if (isRTL) prev(); else next() }
     }
     document.addEventListener('keydown', handler)
     document.body.style.overflow = 'hidden'

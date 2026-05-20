@@ -66,7 +66,21 @@ export default function TaskList({ tasks, selectedTaskId, onSelectTask, onCreate
         </form>
       )}
 
-      {tasks.map(t => {
+      {tasks.length === 0 && !taskForm ? (
+        <div className="text-center py-16 text-gray-400">
+          {canCreate ? (
+            <button onClick={() => setTaskForm(true)}
+              className="inline-flex flex-col items-center gap-3 text-indigo-500 hover:text-indigo-700 transition-colors">
+              <div className="w-16 h-16 rounded-full border-2 border-dashed border-indigo-400 flex items-center justify-center hover:bg-indigo-50">
+                <Plus className="w-8 h-8" />
+              </div>
+              <span className="text-sm font-medium">إضافة مهمة جديدة</span>
+            </button>
+          ) : (
+            <p>لا توجد مهام في هذا المشروع</p>
+          )}
+        </div>
+      ) : tasks.map(t => {
         const pct = t.subtasks_count > 0 ? Math.round((t.completed_count / t.subtasks_count) * 100) : 0
         return (
           <div key={t.id} className={`rounded-lg border transition-colors ${selectedTaskId === t.id ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'}`}>
