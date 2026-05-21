@@ -7,7 +7,7 @@ start.bat setup                    # One-time: migrate schema + seed, then start
 start.bat seed                     # Refresh permissions only (safe anytime)
 cd server && npm run dev           # dev with tsx watch (auto-reloads on .ts changes)
 cd client && npm run dev           # Vite dev server (HMR)
-cd server && npm run test          # run unit/integration tests (43 tests)
+cd server && npm run test          # run unit/integration tests (95 tests)
 cd server && npm run typecheck     # server TypeScript check
 cd client && npm run typecheck     # client TypeScript check
 cd server && npm run lint          # server ESLint

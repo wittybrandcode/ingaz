@@ -550,6 +550,16 @@ export class SubtaskService extends BaseService {
       }
     }
 
+    if (data.deadline && oldSubtask.deadline && new Date(data.deadline) > new Date(oldSubtask.deadline) && subtask.assignedTo) {
+      if (ctx.io) {
+        notifService.create({
+          userId: subtask.assignedTo, type: 'deadline_extended', title: `تم تمديد الموعد النهائي للمهمة: ${subtask.title}`,
+          message: `تم تمديد الموعد النهائي للمهمة "${subtask.title}"`,
+          relatedType: 'subtask', relatedId: subtask.id,
+        }, ctx.io)
+      }
+    }
+
     if (data.assigned_to !== undefined && data.assigned_to !== oldSubtask?.assignedTo) {
       if (ctx.io) {
         if (data.assigned_to) {

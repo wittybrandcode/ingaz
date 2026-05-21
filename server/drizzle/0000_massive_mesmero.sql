@@ -24,6 +24,9 @@ CREATE TABLE "comments" (
 	"subtask_id" integer,
 	"user_id" integer,
 	"content" text NOT NULL,
+	"is_winner" integer DEFAULT 0,
+	"winner_selected_at" timestamp,
+	"winner_selected_by" integer,
 	"created_at" timestamp DEFAULT now()
 );
 --> statement-breakpoint
@@ -91,7 +94,7 @@ CREATE TABLE "projects" (
 	"created_by" integer,
 	"status" text DEFAULT 'active',
 	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "projects_status_check" CHECK ("projects"."status" IN ('active', 'archived'))
+	CONSTRAINT "projects_status_check" CHECK ("projects"."status" IN ('active', 'completed', 'archived'))
 );
 --> statement-breakpoint
 CREATE TABLE "restriction_levels" (
@@ -138,13 +141,11 @@ CREATE TABLE "subtasks" (
 	"title" text NOT NULL,
 	"description" text,
 	"assigned_to" integer,
-	"status" text DEFAULT 'pending',
+	"status" text DEFAULT 'open',
 	"deadline" timestamp,
-	"submission_text" text,
-	"submission_link" text,
-	"manager_notes" text,
+	"winner_comment_id" integer,
 	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "subtasks_status_check" CHECK ("subtasks"."status" IN ('pending', 'in_progress', 'submitted', 'approved', 'rejected'))
+	CONSTRAINT "subtasks_status_check" CHECK ("subtasks"."status" IN ('open', 'in_progress', 'submitted', 'approved', 'rejected', 'completed', 'cancelled', 'deferred'))
 );
 --> statement-breakpoint
 CREATE TABLE "task_assignees" (
@@ -163,7 +164,7 @@ CREATE TABLE "tasks" (
 	"created_by" integer,
 	"status" text DEFAULT 'active',
 	"created_at" timestamp DEFAULT now(),
-	CONSTRAINT "tasks_status_check" CHECK ("tasks"."status" IN ('active', 'archived'))
+	CONSTRAINT "tasks_status_check" CHECK ("tasks"."status" IN ('active', 'open', 'in_progress', 'completed'))
 );
 --> statement-breakpoint
 CREATE TABLE "token_blacklist" (
@@ -223,6 +224,7 @@ ALTER TABLE "activity_logs" ADD CONSTRAINT "activity_logs_user_id_users_id_fk" F
 ALTER TABLE "attachments" ADD CONSTRAINT "attachments_uploaded_by_users_id_fk" FOREIGN KEY ("uploaded_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comments" ADD CONSTRAINT "comments_subtask_id_subtasks_id_fk" FOREIGN KEY ("subtask_id") REFERENCES "public"."subtasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "comments" ADD CONSTRAINT "comments_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "comments" ADD CONSTRAINT "comments_winner_selected_by_users_id_fk" FOREIGN KEY ("winner_selected_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "deadline_reminders" ADD CONSTRAINT "deadline_reminders_subtask_id_subtasks_id_fk" FOREIGN KEY ("subtask_id") REFERENCES "public"."subtasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -236,6 +238,7 @@ ALTER TABLE "subtask_assignees" ADD CONSTRAINT "subtask_assignees_user_id_users_
 ALTER TABLE "subtask_assignees" ADD CONSTRAINT "subtask_assignees_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subtasks" ADD CONSTRAINT "subtasks_task_id_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subtasks" ADD CONSTRAINT "subtasks_assigned_to_users_id_fk" FOREIGN KEY ("assigned_to") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "subtasks" ADD CONSTRAINT "subtasks_winner_comment_id_comments_id_fk" FOREIGN KEY ("winner_comment_id") REFERENCES "public"."comments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "task_assignees" ADD CONSTRAINT "task_assignees_task_id_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tasks"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "task_assignees" ADD CONSTRAINT "task_assignees_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "task_assignees" ADD CONSTRAINT "task_assignees_assigned_by_users_id_fk" FOREIGN KEY ("assigned_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint

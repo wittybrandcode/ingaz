@@ -1,5 +1,5 @@
 {
-  "id": "d152840d-bb5c-4f86-ade8-0a3bd294fe93",
+  "id": "4d1099c3-d89b-4e56-b02c-9ace6b9b984d",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -236,6 +236,25 @@
           "primaryKey": false,
           "notNull": true
         },
+        "is_winner": {
+          "name": "is_winner",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "winner_selected_at": {
+          "name": "winner_selected_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "winner_selected_by": {
+          "name": "winner_selected_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -301,6 +320,19 @@
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "comments_winner_selected_by_users_id_fk": {
+          "name": "comments_winner_selected_by_users_id_fk",
+          "tableFrom": "comments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "winner_selected_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
           "onUpdate": "no action"
         }
       },
@@ -939,7 +971,7 @@
       "checkConstraints": {
         "projects_status_check": {
           "name": "projects_status_check",
-          "value": "\"projects\".\"status\" IN ('active', 'archived')"
+          "value": "\"projects\".\"status\" IN ('active', 'completed', 'archived')"
         }
       },
       "isRLSEnabled": false
@@ -1362,7 +1394,7 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false,
-          "default": "'pending'"
+          "default": "'open'"
         },
         "deadline": {
           "name": "deadline",
@@ -1370,21 +1402,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "submission_text": {
-          "name": "submission_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "submission_link": {
-          "name": "submission_link",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "manager_notes": {
-          "name": "manager_notes",
-          "type": "text",
+        "winner_comment_id": {
+          "name": "winner_comment_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -1454,6 +1474,19 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "subtasks_winner_comment_id_comments_id_fk": {
+          "name": "subtasks_winner_comment_id_comments_id_fk",
+          "tableFrom": "subtasks",
+          "tableTo": "comments",
+          "columnsFrom": [
+            "winner_comment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1462,7 +1495,7 @@
       "checkConstraints": {
         "subtasks_status_check": {
           "name": "subtasks_status_check",
-          "value": "\"subtasks\".\"status\" IN ('pending', 'in_progress', 'submitted', 'approved', 'rejected')"
+          "value": "\"subtasks\".\"status\" IN ('open', 'in_progress', 'submitted', 'approved', 'rejected', 'completed', 'cancelled', 'deferred')"
         }
       },
       "isRLSEnabled": false
@@ -1703,7 +1736,7 @@
       "checkConstraints": {
         "tasks_status_check": {
           "name": "tasks_status_check",
-          "value": "\"tasks\".\"status\" IN ('active', 'archived')"
+          "value": "\"tasks\".\"status\" IN ('active', 'open', 'in_progress', 'completed')"
         }
       },
       "isRLSEnabled": false

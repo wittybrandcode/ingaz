@@ -3,8 +3,9 @@ import { aliasedTable } from 'drizzle-orm'
 import { ROLES, PAGINATION, WARNING_DEADLINE_HOURS, CREDIT } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog } from '../db/index.js'
-import { notifyUser } from '../notify.js'
+import { schema, addActivityLog, getDb } from '../db/index.js'
+import { NotificationService } from './NotificationService.js'
+const notifService = new NotificationService(getDb())
 import { getCreditLevel, clearFrozenCache } from '../middleware/auth.js'
 
 const issuer = aliasedTable(schema.users, 'issuer')
@@ -25,11 +26,11 @@ export class WarningService extends BaseService {
         }).where(eq(schema.users.id, userId))
         clearFrozenCache(userId)
         if (ctx.io) {
-          notifyUser({
+          notifService.create({
             userId, type: 'account_frozen', title: 'تم تجميد حسابك ❄️',
             message: 'وصل رصيد نقاطك إلى مستوى متدنٍ جداً. تم تجميد حسابك تلقائياً. يرجى التواصل مع المدير.',
-            relatedType: undefined, relatedId: undefined, io: ctx.io
-          })
+            relatedType: undefined, relatedId: undefined,
+          }, ctx.io)
         }
       }
     }
@@ -289,12 +290,12 @@ export class WarningService extends BaseService {
     await addActivityLog(ctx.userId, 'create_warning', `أصدر إنذاراً بحق المستخدم ${data.user_id}: ${data.reason.trim()}`)
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId: data.user_id, type: 'warning',
         title: `إنذار ⚠️ (قد يخصم ${points} نقطة)`,
         message: `تم إصدار إنذار بحقك: ${data.reason.trim()}\nيرجى الرد خلال ${data.deadline_hours || WARNING_DEADLINE_HOURS} ساعة`,
-        relatedType: 'warning', relatedId: warning.id, io: ctx.io
-      })
+        relatedType: 'warning', relatedId: warning.id,
+      }, ctx.io)
     }
 
     return enriched
@@ -350,11 +351,11 @@ export class WarningService extends BaseService {
     await addActivityLog(ctx.userId, 'respond_warning', `رد على إنذار: ${responseText.trim().slice(0, 100)}`)
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId: warning.issuedBy, type: 'warning_responded', title: 'رد على إنذار',
         message: `${ctx.userName} رد على الإنذار: ${responseText.trim().slice(0, 100)}`,
-        relatedType: 'warning', relatedId: warning.id, io: ctx.io
-      })
+        relatedType: 'warning', relatedId: warning.id,
+      }, ctx.io)
     }
 
     return updated
@@ -416,11 +417,11 @@ export class WarningService extends BaseService {
     })
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId: warning.userId, type: 'warning_cleared', title: 'تم فك الإنذار ✓',
         message: `${ctx.userName} قبل بتقريرك وتمت استعادة ${warning.pointsDeducted} نقاط`,
-        relatedType: 'warning', relatedId: warning.id, io: ctx.io
-      })
+        relatedType: 'warning', relatedId: warning.id,
+      }, ctx.io)
     }
 
     return updated
@@ -479,12 +480,12 @@ export class WarningService extends BaseService {
     })
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId: warning.userId, type: 'warning_sustained',
         title: `تم خصم ${warning.pointsDeducted} نقاط من رصيدك`,
         message: `${ctx.userName} أبقى على الإنذار. رصيدك الحالي: ${newScore}/10`,
-        relatedType: 'warning', relatedId: warning.id, io: ctx.io
-      })
+        relatedType: 'warning', relatedId: warning.id,
+      }, ctx.io)
     }
 
     await this.autoFreezeCheck(warning.userId, ctx)
@@ -556,11 +557,11 @@ export class WarningService extends BaseService {
     await addActivityLog(ctx.userId, 'unfreeze_user', `فك تجميد المستخدم ${userId}`)
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId, type: 'account_unfrozen', title: 'تم فك تجميد حسابك ✅',
         message: `${ctx.userName} قام بفك تجميد حسابك ورد رصيدك إلى 5 نقاط`,
-        relatedType: undefined, relatedId: undefined, io: ctx.io
-      })
+        relatedType: undefined, relatedId: undefined,
+      }, ctx.io)
     }
 
     return { message: 'تم فك التجميد، تم إعادة الرصيد إلى 5 نقاط' }

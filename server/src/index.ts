@@ -17,7 +17,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
 import cookieParser from 'cookie-parser';
 import { isBlacklisted, getCreditLevel, clearFrozenCache } from './middleware/auth.js';
-import { notifyUser } from './notify.js';
+import { NotificationService } from './services/NotificationService.js';
+const notifService = new NotificationService(getDb())
 import { runMigrations } from './migrate.js';
 import { camelToSnake } from './lib/case-transform.js';
 import { DeadlineService } from './services/DeadlineService.js';
@@ -220,15 +221,14 @@ async function autoRecoverCredit() {
 
     const level = await getCreditLevel(u.id)
 
-    notifyUser({
+    notifService.create({
       userId: u.id,
       type: 'daily_summary',
       title: 'تمت استعادة نقطة ✓',
       message: `تمت استعادة نقطة واحدة لرصيدك. رصيدك الحالي: ${newScore}/10`,
       relatedType: undefined,
       relatedId: undefined,
-      io
-    });
+    }, io);
 
     if (level && (level as any).name !== 'frozen') {
       await db.update(schema.users).set({
@@ -273,15 +273,14 @@ async function checkExpiredWarnings() {
     await db.update(schema.warnings).set({ creditAfter: newScore }).where(eq(schema.warnings.id, w.id))
     await db.update(schema.users).set({ creditScore: newScore }).where(eq(schema.users.id, w.userId))
 
-    notifyUser({
+    notifService.create({
       userId: w.userId,
       type: 'warning_ignored',
       title: `تم خصم ${w.pointsDeducted} نقاط`,
       message: `تجاوزت مهلة الرد على الإنذار. رصيدك الحالي: ${newScore}/10`,
       relatedType: 'warning',
       relatedId: w.id,
-      io
-    });
+    }, io);
 
     const level = await getCreditLevel(w.userId);
     if (level && (level as any).name === 'frozen' && !(level as any).canLogin) {
@@ -290,15 +289,14 @@ async function checkExpiredWarnings() {
         freezeReason: `وصل رصيدك إلى ${newScore} نقاط بعد تجاهل الإنذار`,
       }).where(eq(schema.users.id, w.userId))
       clearFrozenCache(w.userId);
-      notifyUser({
+      notifService.create({
         userId: w.userId,
         type: 'account_frozen',
         title: 'تم تجميد حسابك ❄️',
         message: `وصل رصيد نقاطك إلى ${newScore}/10. تم تجميد حسابك تلقائياً.`,
         relatedType: undefined,
         relatedId: undefined,
-        io
-      });
+      }, io);
     }
   }
 }
@@ -325,6 +323,23 @@ function safeInterval(name: string, fn: () => Promise<void>, ms: number) {
   run();
 }
 
+async function sendDailySummaries() {
+  const db = getDb()
+  const activeUsers = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.status, 'active'))
+  for (const u of activeUsers) {
+    await notifService.create({
+      userId: u.id,
+      type: 'daily_summary',
+      title: 'ملخصك اليومي متوفر',
+      message: 'يمكنك الاطلاع على المهام المعلقة والمواعيد النهائية من لوحة التحكم',
+    })
+  }
+}
+
 safeInterval('checkDeadlines', () => deadlineService.checkDeadlines(io), INTERVAL_1MIN);
 safeInterval('checkExpiredWarnings', checkExpiredWarnings, INTERVAL_1MIN);
 safeInterval('autoRecoverCredit', autoRecoverCredit, INTERVAL_1MIN);
+safeInterval('sendDailySummaries', sendDailySummaries, 12 * 3600000);

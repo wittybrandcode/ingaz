@@ -4,7 +4,7 @@ import { ROLES, PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, addActivityLog, getDb, isProjectManager, getTaskAssignees } from '../db/index.js'
-import { notifyUser } from '../notify.js'
+
 import { NotificationService } from './NotificationService.js'
 const notifService = new NotificationService(getDb())
 import { camelToSnake } from '../lib/case-transform.js'
@@ -328,15 +328,14 @@ export class TaskService extends BaseService {
       const project = projectRows[0]
 
       if (ctx.io) {
-        notifyUser({
+        notifService.create({
           userId,
           type: 'task_assigned',
           title: 'تم تكليفك في مهمة',
           message: `تم تكليفك في مهمة "${task?.title}" في مشروع "${project?.projectTitle}"`,
           relatedType: 'task',
           relatedId: taskId,
-          io: ctx.io
-        })
+        }, ctx.io)
         ctx.io.emit('list:update', { type: 'task', action: 'updated', data: { id: taskId } })
       }
 
@@ -365,15 +364,14 @@ export class TaskService extends BaseService {
       .limit(1)
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId,
         type: 'task_unassigned',
         title: 'تم إلغاء تكليفك',
         message: `تم إلغاء تكليفك من مهمة "${task?.title}"`,
         relatedType: 'task',
         relatedId: taskId,
-        io: ctx.io
-      })
+      }, ctx.io)
       ctx.io.emit('list:update', { type: 'task', action: 'updated', data: { id: taskId } })
     }
 

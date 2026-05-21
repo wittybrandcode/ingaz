@@ -16,8 +16,6 @@ vi.mock('../db/index.js', async () => {
 })
 
 vi.mock('../notify.js', () => ({
-  notifyAll: vi.fn(),
-  notifyUser: vi.fn(),
   setDefaultPrefs: mockSetDefaultPrefs,
 }))
 

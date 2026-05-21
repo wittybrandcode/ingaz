@@ -9,8 +9,6 @@ const adminCtx: ServiceContext = { userId: 1, roleId: 1 }
 
 const mockGetCreditLevel = vi.hoisted(() => vi.fn())
 const mockClearFrozenCache = vi.hoisted(() => vi.fn())
-const mockNotifyUser = vi.hoisted(() => vi.fn())
-
 const mockDrizzleDb = vi.hoisted(() => ({
   select: vi.fn().mockReturnThis(),
   from: vi.fn().mockReturnThis(),
@@ -51,18 +49,10 @@ vi.mock('../middleware/auth.js', () => ({
   clearFrozenCache: mockClearFrozenCache,
 }))
 
-vi.mock('../notify.js', () => ({
-  notifyUser: mockNotifyUser,
-  notifyAll: vi.fn(),
-  setDefaultPrefs: vi.fn(),
-  parseMentions: vi.fn().mockResolvedValue(''),
-}))
-
 describe('WarningService', () => {
   beforeEach(() => {
     mockGetCreditLevel.mockReset()
     mockClearFrozenCache.mockReset()
-    mockNotifyUser.mockReset()
   })
 
   describe('warning types CRUD', () => {

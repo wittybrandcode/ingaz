@@ -31,8 +31,6 @@ vi.mock('../db/index.js', async () => {
 
 vi.mock('../notify.js', () => ({
   setDefaultPrefs: vi.fn(),
-  notifyUser: vi.fn(),
-  notifyAll: vi.fn(),
   parseMentions: vi.fn().mockResolvedValue(''),
 }))
 

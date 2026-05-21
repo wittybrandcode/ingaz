@@ -6,7 +6,7 @@ import { ROLES, PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, addActivityLog, getDb } from '../db/index.js'
-import { notifyUser } from '../notify.js'
+
 import { NotificationService } from './NotificationService.js'
 const notifService = new NotificationService(getDb())
 import { camelToSnake } from '../lib/case-transform.js'
@@ -384,15 +384,14 @@ export class ProjectService extends BaseService {
           .from(schema.projects)
           .where(eq(schema.projects.id, projectId))
           .limit(1)
-        notifyUser({
+        notifService.create({
           userId,
           type: 'project_assigned',
           title: 'تمت إضافتك كمشرف على مشروع',
           message: `تمت إضافتك كمشرف على مشروع "${project?.title}"`,
           relatedType: 'project',
           relatedId: projectId,
-          io: ctx.io,
-        })
+        }, ctx.io)
       }
 
       return camelToSnake(enriched)

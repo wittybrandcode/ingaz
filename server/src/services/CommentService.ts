@@ -3,7 +3,7 @@ import { ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees, getDb } from '../db/index.js'
-import { notifyUser, parseMentions, notifyAll } from '../notify.js'
+import { parseMentions } from '../notify.js'
 import { camelToSnake } from '../lib/case-transform.js'
 import { NotificationService } from './NotificationService.js'
 const notifService = new NotificationService(getDb())
@@ -249,23 +249,37 @@ export class CommentService extends BaseService {
           data: { id: task?.projectId, status: 'completed' },
         })
 
-        notifyAll({
-          type: 'project_completed',
-          title: 'اكتمل مشروع! 🎉',
-          message: `اكتمل مشروع "${task?.projectTitle}"`,
-          relatedType: 'project',
-          relatedId: task?.projectId,
-          io: ctx.io,
-        })
+        const allUsers = await this.db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(eq(schema.users.status, 'active'))
+        notifService.createMany(
+          allUsers.map((u: any) => ({
+            userId: u.id,
+            type: 'project_completed',
+            title: 'اكتمل مشروع! 🎉',
+            message: `اكتمل مشروع "${task?.projectTitle}"`,
+            relatedType: 'project',
+            relatedId: task?.projectId,
+          })),
+          ctx.io,
+        )
       } else if (newTaskStatus === 'completed') {
-        notifyAll({
-          type: 'task_completed',
-          title: 'اكتملت مهمة',
-          message: `اكتملت مهمة "${task?.title}" في مشروع "${task?.projectTitle}"`,
-          relatedType: 'project',
-          relatedId: task?.projectId,
-          io: ctx.io,
-        })
+        const allUsers = await this.db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(eq(schema.users.status, 'active'))
+        notifService.createMany(
+          allUsers.map((u: any) => ({
+            userId: u.id,
+            type: 'task_completed',
+            title: 'اكتملت مهمة',
+            message: `اكتملت مهمة "${task?.title}" في مشروع "${task?.projectTitle}"`,
+            relatedType: 'project',
+            relatedId: task?.projectId,
+          })),
+          ctx.io,
+        )
       }
 
       const allParticipants = await this.db
@@ -277,15 +291,14 @@ export class CommentService extends BaseService {
       for (const p of allParticipants) {
         if (p.userId !== ctx.userId && !notifiedIds.has(p.userId)) {
           notifiedIds.add(p.userId)
-          notifyUser({
+          notifService.create({
             userId: p.userId,
             type: 'winner_selected',
             title: 'تم ترشيح تعليق فائز',
             message: `${ctx.userName} رشّح تعليقاً فائزاً في "${subtask.title}"`,
             relatedType: 'subtask',
             relatedId: subtask.id,
-            io: ctx.io,
-          })
+          }, ctx.io)
         }
       }
     }
