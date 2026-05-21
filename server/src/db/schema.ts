@@ -61,7 +61,7 @@ export const subtasks = pgTable('subtasks', {
   createdAt: timestamp('created_at').defaultNow(),
 }, table => [
   check('subtasks_status_check',
-    sql`${table.status} IN ('open', 'completed', 'cancelled', 'deferred')`),
+    sql`${table.status} IN ('open', 'in_progress', 'submitted', 'approved', 'rejected', 'completed', 'cancelled', 'deferred')`),
   index('idx_subtasks_task').on(table.taskId),
   index('idx_subtasks_assigned').on(table.assignedTo),
 ])

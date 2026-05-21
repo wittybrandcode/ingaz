@@ -5,13 +5,18 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { ROLES, PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, isProjectManager, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee } from '../db/index.js'
-import { notifyAll, notifyUser } from '../notify.js'
+import { schema, addActivityLog, isProjectManager, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee, getDb } from '../db/index.js'
+import { NotificationService } from './NotificationService.js'
+const notifService = new NotificationService(getDb())
 import { hasPermission } from '../middleware/auth.js'
 import { camelToSnake } from '../lib/case-transform.js'
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  open: ['completed', 'cancelled', 'deferred'],
+  open: ['in_progress', 'completed', 'cancelled', 'deferred'],
+  in_progress: ['submitted', 'cancelled', 'deferred'],
+  submitted: ['approved', 'rejected', 'cancelled'],
+  approved: [],
+  rejected: [],
   completed: [],
   cancelled: [],
   deferred: ['open'],
@@ -282,6 +287,9 @@ export class SubtaskService extends BaseService {
 
     const [task] = await this.db
       .select({
+        id: schema.tasks.id,
+        projectId: schema.tasks.projectId,
+        createdBy: schema.tasks.createdBy,
         title: schema.tasks.title,
         projectTitle: schema.projects.title,
       })
@@ -292,24 +300,33 @@ export class SubtaskService extends BaseService {
 
     if (ctx.io) {
       if (data.assigned_to) {
-        notifyUser({
+        notifService.create({
           userId: data.assigned_to,
           type: 'subtask_assigned',
-          title: 'مهمة جديدة مسندة إليك',
+          title: `تم إسناد مهمة "${data.title}" لك`,
           message: `تم إسناد "${data.title}" إليك في مهمة "${task?.title}" بمشروع "${task?.projectTitle}"`,
           relatedType: 'subtask',
           relatedId: subtask.id,
-          io: ctx.io,
-        })
+        }, ctx.io)
       } else {
-        notifyAll({
-          type: 'subtask_created',
-          title: 'مهمة فرعية جديدة',
-          message: `${ctx.userName} أضاف مهمة فرعية "${data.title}" في مهمة "${task?.title}"`,
-          relatedType: 'task',
-          relatedId: data.task_id,
-          io: ctx.io,
-        })
+        const recipients = new Set<number>()
+        if (task?.createdBy) recipients.add(task.createdBy)
+        const projectMembers = await this.db
+          .select({ userId: schema.projectMembers.userId })
+          .from(schema.projectMembers)
+          .where(eq(schema.projectMembers.projectId, task.projectId))
+        for (const m of projectMembers) recipients.add(m.userId)
+        notifService.createMany(
+          [...recipients].map(userId => ({
+            userId,
+            type: 'subtask_created',
+            title: 'مهمة فرعية جديدة',
+            message: `${ctx.userName} أضاف مهمة فرعية "${data.title}" في مهمة "${task?.title}"`,
+            relatedType: 'task',
+            relatedId: data.task_id,
+          })),
+          ctx.io,
+        )
       }
       ctx.io.emit('list:update', { type: 'subtask', action: 'created', data: camelToSnake(subtask) })
     }
@@ -373,6 +390,7 @@ export class SubtaskService extends BaseService {
         .select({
           id: schema.tasks.id,
           projectId: schema.tasks.projectId,
+          createdBy: schema.tasks.createdBy,
           title: schema.tasks.title,
           projectTitle: schema.projects.title,
         })
@@ -409,56 +427,125 @@ export class SubtaskService extends BaseService {
     })
 
     if (data.status && data.status !== oldSubtask.status) {
-      if (data.status === 'cancelled' || data.status === 'deferred' || data.status === 'completed') {
-        if (ctx.io) {
-          const actionLabel: Record<string, string> = {
-            completed: 'أكمل',
-            cancelled: 'ألغى',
-            deferred: 'أجل',
-          }
-          const action = actionLabel[data.status] || 'حدّث'
-          notifyAll({
-            type: 'subtask_updated',
-            title: 'تحديث مهمة فرعية',
-            message: ctx.userName + ' ' + action + ' "' + subtask.title + '" في مهمة "' + (task?.title || '') + '"',
-            relatedType: 'task',
-            relatedId: task?.id,
-            io: ctx.io,
-          })
-        }
-      }
-
-      if (data.status === 'deferred' && ctx.io) {
-        const subtaskAssignees = await getSubtaskAssignees(id)
-        for (const a of subtaskAssignees) {
-          notifyUser({
-            userId: a.userId,
-            type: 'subtask_deferred',
-            title: 'تم تأجيل المهمة',
-            message: `تم تأجيل "${subtask.title}"`,
-            relatedType: 'subtask',
-            relatedId: subtask.id,
-            io: ctx.io,
-          })
-        }
-      }
-
-      if (data.status === 'open' && oldSubtask.status === 'deferred' && ctx.io) {
-        const subtaskAssignees = await getSubtaskAssignees(id)
-        for (const a of subtaskAssignees) {
-          notifyUser({
-            userId: a.userId,
-            type: 'subtask_reactivated',
-            title: 'تم إعادة فتح المهمة',
-            message: `تم إعادة فتح "${subtask.title}"`,
-            relatedType: 'subtask',
-            relatedId: subtask.id,
-            io: ctx.io,
-          })
-        }
-      }
-
       if (ctx.io) {
+        const statusLabel: Record<string, string> = {
+          in_progress: 'بدأ',
+          submitted: 'سلّم',
+          approved: 'قبل',
+          rejected: 'رفض',
+          completed: 'أكمل',
+          cancelled: 'ألغى',
+          deferred: 'أجل',
+        }
+        const action = statusLabel[data.status] || 'حدّث'
+
+        if (data.status === 'completed' || data.status === 'cancelled' || data.status === 'deferred') {
+          const allUsers = await this.db
+            .select({ id: schema.users.id })
+            .from(schema.users)
+            .where(eq(schema.users.status, 'active'))
+          notifService.createMany(
+            allUsers.map((u: any) => ({
+              userId: u.id,
+              type: 'subtask_updated',
+              title: 'تحديث مهمة فرعية',
+              message: `${ctx.userName} ${action} "${subtask.title}" في مهمة "${task?.title || ''}"`,
+              relatedType: 'task',
+              relatedId: task?.id,
+            })),
+            ctx.io,
+          )
+        }
+
+        if (data.status === 'deferred') {
+          const subtaskAssignees = await getSubtaskAssignees(id)
+          for (const a of subtaskAssignees) {
+            notifService.create({
+              userId: a.userId,
+              type: 'subtask_deferred',
+              title: 'تم تأجيل المهمة',
+              message: `تم تأجيل "${subtask.title}"`,
+              relatedType: 'subtask',
+              relatedId: subtask.id,
+            }, ctx.io)
+          }
+        }
+
+        if (data.status === 'in_progress') {
+          const recipients = new Set<number>()
+          if (task?.createdBy) recipients.add(task.createdBy)
+          const admins = await this.db
+            .select({ id: schema.users.id })
+            .from(schema.users)
+            .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
+          for (const a of admins) recipients.add(a.id)
+          notifService.createMany(
+            [...recipients].map(userId => ({
+              userId,
+              type: 'in_progress',
+              title: `بدأ "${subtask.title}"`,
+              message: `${ctx.userName} بدأ تنفيذ "${subtask.title}" في مهمة "${task?.title || ''}"`,
+              relatedType: 'subtask',
+              relatedId: subtask.id,
+            })),
+            ctx.io,
+          )
+        }
+
+        if (data.status === 'submitted') {
+          const admins = await this.db
+            .select({ id: schema.users.id })
+            .from(schema.users)
+            .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
+          notifService.createMany(
+            admins.map((a: any) => ({
+              userId: a.id,
+              type: 'submitted',
+              title: `تسليم "${subtask.title}"`,
+              message: `${ctx.userName} سلّم "${subtask.title}" في مهمة "${task?.title || ''}" للمراجعة`,
+              relatedType: 'subtask',
+              relatedId: subtask.id,
+            })),
+            ctx.io,
+          )
+        }
+
+        if (data.status === 'approved' && subtask.assignedTo) {
+          notifService.create({
+            userId: subtask.assignedTo,
+            type: 'approved',
+            title: `قبول "${subtask.title}"`,
+            message: `تم قبول "${subtask.title}" في مهمة "${task?.title || ''}"`,
+            relatedType: 'subtask',
+            relatedId: subtask.id,
+          }, ctx.io)
+        }
+
+        if (data.status === 'rejected' && subtask.assignedTo) {
+          notifService.create({
+            userId: subtask.assignedTo,
+            type: 'rejected',
+            title: `رفض "${subtask.title}"`,
+            message: `تم رفض "${subtask.title}" في مهمة "${task?.title || ''}"`,
+            relatedType: 'subtask',
+            relatedId: subtask.id,
+          }, ctx.io)
+        }
+
+        if (data.status === 'open' && oldSubtask.status === 'deferred') {
+          const subtaskAssignees = await getSubtaskAssignees(id)
+          for (const a of subtaskAssignees) {
+            notifService.create({
+              userId: a.userId,
+              type: 'subtask_reactivated',
+              title: 'تم إعادة فتح المهمة',
+              message: `تم إعادة فتح "${subtask.title}"`,
+              relatedType: 'subtask',
+              relatedId: subtask.id,
+            }, ctx.io)
+          }
+        }
+
         ctx.io.emit('subtask:updated', { id: Number(id), status: subtask.status, winner_comment_id: subtask.winnerCommentId })
       }
     }
@@ -466,18 +553,18 @@ export class SubtaskService extends BaseService {
     if (data.assigned_to !== undefined && data.assigned_to !== oldSubtask?.assignedTo) {
       if (ctx.io) {
         if (data.assigned_to) {
-          notifyUser({
-            userId: data.assigned_to, type: 'subtask_assigned', title: 'تم إسناد مهمة إليك',
+          notifService.create({
+            userId: data.assigned_to, type: 'subtask_assigned', title: `تم إسناد مهمة "${subtask.title}" لك`,
             message: `تم إسناد "${subtask.title}" إليك`,
-            relatedType: 'subtask', relatedId: subtask.id, io: ctx.io,
-          })
+            relatedType: 'subtask', relatedId: subtask.id,
+          }, ctx.io)
         }
         if (oldSubtask?.assignedTo) {
-          notifyUser({
+          notifService.create({
             userId: oldSubtask.assignedTo, type: 'assignment_changed', title: 'تم تغيير المسؤول عن المهمة',
             message: `تم نقل "${subtask.title}" من "${ctx.userName}" إلى مستخدم آخر`,
-            relatedType: 'subtask', relatedId: subtask.id, io: ctx.io,
-          })
+            relatedType: 'subtask', relatedId: subtask.id,
+          }, ctx.io)
         }
       }
     }
@@ -605,11 +692,11 @@ export class SubtaskService extends BaseService {
         .limit(1)
 
       if (ctx.io) {
-        notifyUser({
-          userId, type: 'subtask_assigned', title: 'تم تكليفك في مهمة فرعية',
+        notifService.create({
+          userId, type: 'subtask_assigned', title: `تم إسناد مهمة "${subtask?.title}" لك`,
           message: `تم تكليفك في "${subtask?.title}" ضمن مهمة "${task?.taskTitle}" في "${task?.projectTitle}"`,
-          relatedType: 'subtask', relatedId: subtaskId, io: ctx.io,
-        })
+          relatedType: 'subtask', relatedId: subtaskId,
+        }, ctx.io)
         ctx.io.emit('list:update', { type: 'subtask', action: 'updated', data: { id: subtaskId } })
       }
 
@@ -650,11 +737,11 @@ export class SubtaskService extends BaseService {
     })
 
     if (ctx.io) {
-      notifyUser({
+      notifService.create({
         userId, type: 'assignment_changed', title: 'تم إلغاء تكليفك',
         message: `تم إلغاء تكليفك من "${subtask?.title}"`,
-        relatedType: 'subtask', relatedId: subtaskId, io: ctx.io,
-      })
+        relatedType: 'subtask', relatedId: subtaskId,
+      }, ctx.io)
       ctx.io.emit('list:update', { type: 'subtask', action: 'updated', data: { id: subtaskId } })
     }
     return { message: 'تم إزالة المكلف' }
