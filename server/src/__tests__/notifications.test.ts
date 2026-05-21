@@ -129,6 +129,87 @@ describe('NotificationService — createMany', () => {
   })
 })
 
+describe('NotificationService — preferences block different types', () => {
+  it('does not create comment notification when user has comment disabled', async () => {
+    const user = seedUser(db, { id: 1 })
+    db.insert(testSchema.notificationPreferences).values({
+      userId: user.id,
+      notificationType: 'comment',
+      enabled: 0,
+      channels: '["in_app"]',
+    }).run()
+    const notif = await notificationService.create({
+      userId: user.id,
+      title: 'New comment',
+      type: 'comment',
+    })
+    expect(notif).toBeNull()
+  })
+
+  it('does not create @mention notification when user has @mention disabled', async () => {
+    const user = seedUser(db, { id: 1 })
+    db.insert(testSchema.notificationPreferences).values({
+      userId: user.id,
+      notificationType: '@mention',
+      enabled: 0,
+      channels: '["in_app"]',
+    }).run()
+    const notif = await notificationService.create({
+      userId: user.id,
+      title: 'You were mentioned',
+      type: '@mention',
+    })
+    expect(notif).toBeNull()
+  })
+
+  it('createMany respects mixed preferences — only enabled users get notifications', async () => {
+    const enabledUser = seedUser(db, { id: 1, email: 'enabled@test.com' })
+    const disabledUser = seedUser(db, { id: 2, email: 'disabled@test.com' })
+    db.insert(testSchema.notificationPreferences).values({
+      userId: disabledUser.id,
+      notificationType: 'comment',
+      enabled: 0,
+      channels: '["in_app"]',
+    }).run()
+    const notifs = await notificationService.createMany([
+      { userId: enabledUser.id, title: 'Enabled user', type: 'comment' },
+      { userId: disabledUser.id, title: 'Disabled user', type: 'comment' },
+    ])
+    expect(notifs).toHaveLength(1)
+    expect(notifs[0].title).toBe('Enabled user')
+  })
+
+  it('createMany with multiple disabled types still respects preferences', async () => {
+    const user1 = seedUser(db, { id: 1, email: 'u1@test.com' })
+    const user2 = seedUser(db, { id: 2, email: 'u2@test.com' })
+    const user3 = seedUser(db, { id: 3, email: 'u3@test.com' })
+    db.insert(testSchema.notificationPreferences).values({
+      userId: user1.id,
+      notificationType: 'info',
+      enabled: 0,
+      channels: '["in_app"]',
+    }).run()
+    db.insert(testSchema.notificationPreferences).values({
+      userId: user2.id,
+      notificationType: 'comment',
+      enabled: 0,
+      channels: '["in_app"]',
+    }).run()
+    const notifsInfo = await notificationService.createMany([
+      { userId: user1.id, title: 'Info', type: 'info' },
+      { userId: user2.id, title: 'Info', type: 'info' },
+      { userId: user3.id, title: 'Info', type: 'info' },
+    ])
+    expect(notifsInfo).toHaveLength(2)
+    const notifsComment = await notificationService.createMany([
+      { userId: user1.id, title: 'Comment', type: 'comment' },
+      { userId: user2.id, title: 'Comment', type: 'comment' },
+      { userId: user3.id, title: 'Comment', type: 'comment' },
+    ])
+    expect(notifsComment).toHaveLength(2)
+  })
+})
+
 describe('NotificationService — isEnabled', () => {
   it('returns true when no preference exists and default is enabled', async () => {
     const user = seedUser(db, { id: 1 })

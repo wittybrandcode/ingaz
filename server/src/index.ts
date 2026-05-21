@@ -20,6 +20,7 @@ import { isBlacklisted, getCreditLevel, clearFrozenCache } from './middleware/au
 import { notifyUser } from './notify.js';
 import { runMigrations } from './migrate.js';
 import { camelToSnake } from './lib/case-transform.js';
+import { DeadlineService } from './services/DeadlineService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -188,144 +189,7 @@ runMigrations().then(() => {
 
 const CREDIT_RECOVERY_MS = 24 * 3600000;
 
-const MS_6H = 6 * 3600000;
-const MS_24H = 24 * 3600000;
-
-async function checkDeadlines() {
-  const db = getDb()
-  const now = Date.now();
-  const in6h = now + MS_6H;
-  const in24h = now + MS_24H;
-
-  const pendingReminders = await db
-    .select()
-    .from(schema.deadlineReminders)
-    .where(eq(schema.deadlineReminders.sent, 0))
-  const sentMap: Record<string, any> = {};
-  for (const r of pendingReminders) {
-    if (!sentMap[r.subtaskId]) sentMap[r.subtaskId] = {};
-    sentMap[r.subtaskId][r.reminderType] = true;
-  }
-
-  const subtasksWithDeadlines = await db
-    .select({
-      id: schema.subtasks.id,
-      title: schema.subtasks.title,
-      deadline: schema.subtasks.deadline,
-      assignedTo: schema.subtasks.assignedTo,
-      status: schema.subtasks.status,
-      taskTitle: schema.tasks.title,
-      projectTitle: schema.projects.title,
-      userName: schema.users.name,
-    })
-    .from(schema.subtasks)
-    .innerJoin(schema.tasks, eq(schema.subtasks.taskId, schema.tasks.id))
-    .innerJoin(schema.projects, eq(schema.tasks.projectId, schema.projects.id))
-    .leftJoin(schema.users, eq(schema.subtasks.assignedTo, schema.users.id))
-    .where(
-      and(
-        sql`${schema.subtasks.deadline} IS NOT NULL`,
-        sql`${schema.subtasks.status} NOT IN ('approved', 'rejected')`,
-      )
-    )
-
-  for (const s of subtasksWithDeadlines) {
-    const dl = new Date(s.deadline).getTime();
-    const reminderKey = (type: string) => `${s.id}:${type}`;
-
-    if (dl > now && dl <= in24h && !sentMap[s.id]?.['24h'] && s.assignedTo) {
-      try {
-        await db.insert(schema.deadlineReminders).values({
-          subtaskId: s.id,
-          reminderType: '24h',
-        })
-      } catch { /* duplicate key — reminder already inserted */ }
-      notifyUser({
-        userId: s.assignedTo,
-        type: 'deadline_approaching_24h',
-        title: '⏰ تبقى أقل من 24 ساعة على الموعد النهائي',
-        message: `مهمة "${s.title}" في "${s.taskTitle}" - ${new Date(s.deadline).toLocaleDateString('ar-SA')}`,
-        relatedType: 'subtask',
-        relatedId: s.id,
-        io
-      });
-      await db.update(schema.deadlineReminders).set({ sent: 1 })
-        .where(
-          and(
-            eq(schema.deadlineReminders.subtaskId, s.id),
-            eq(schema.deadlineReminders.reminderType, '24h'),
-          )
-        )
-    }
-
-    if (dl > now && dl <= in6h && !sentMap[s.id]?.['6h'] && s.assignedTo) {
-      try {
-        await db.insert(schema.deadlineReminders).values({
-          subtaskId: s.id,
-          reminderType: '6h',
-        })
-      } catch { /* duplicate key — reminder already inserted */ }
-      notifyUser({
-        userId: s.assignedTo,
-        type: 'deadline_approaching_6h',
-        title: '🔴 تبقى أقل من 6 ساعات على الموعد النهائي!',
-        message: `مهمة "${s.title}" في "${s.taskTitle}" - ${new Date(s.deadline).toLocaleDateString('ar-SA')}`,
-        relatedType: 'subtask',
-        relatedId: s.id,
-        io
-      });
-      await db.update(schema.deadlineReminders).set({ sent: 1 })
-        .where(
-          and(
-            eq(schema.deadlineReminders.subtaskId, s.id),
-            eq(schema.deadlineReminders.reminderType, '6h'),
-          )
-        )
-    }
-
-    if (dl < now - 60000 && !sentMap[s.id]?.['overdue'] && s.assignedTo) {
-      try {
-        await db.insert(schema.deadlineReminders).values({
-          subtaskId: s.id,
-          reminderType: 'overdue',
-        })
-      } catch { /* duplicate key — reminder already inserted */ }
-      notifyUser({
-        userId: s.assignedTo,
-        type: 'deadline_overdue',
-        title: '⛔ تم تجاوز الموعد النهائي!',
-        message: `مهمة "${s.title}" في "${s.taskTitle}" - كان الموعد ${new Date(s.deadline).toLocaleDateString('ar-SA')}`,
-        relatedType: 'subtask',
-        relatedId: s.id,
-        io
-      });
-      const managers = await db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(sql`${schema.users.roleId} IN (${ROLES.ADMIN}, ${ROLES.DEPUTY})`)
-      for (const m of managers) {
-        if (m.id !== s.assignedTo) {
-          notifyUser({
-            userId: m.id,
-            type: 'deadline_overdue',
-            title: `⛔ ${s.userName || 'موظف'} تجاوز الموعد النهائي`,
-            message: `مهمة "${s.title}" في "${s.taskTitle}"`,
-            relatedType: 'subtask',
-            relatedId: s.id,
-            io
-          });
-        }
-      }
-      await db.update(schema.deadlineReminders).set({ sent: 1 })
-        .where(
-          and(
-            eq(schema.deadlineReminders.subtaskId, s.id),
-            eq(schema.deadlineReminders.reminderType, 'overdue'),
-          )
-        )
-    }
-  }
-}
+const deadlineService = new DeadlineService(getDb())
 
 async function autoRecoverCredit() {
   const db = getDb()
@@ -461,6 +325,6 @@ function safeInterval(name: string, fn: () => Promise<void>, ms: number) {
   run();
 }
 
-safeInterval('checkDeadlines', checkDeadlines, INTERVAL_1MIN);
+safeInterval('checkDeadlines', () => deadlineService.checkDeadlines(io), INTERVAL_1MIN);
 safeInterval('checkExpiredWarnings', checkExpiredWarnings, INTERVAL_1MIN);
 safeInterval('autoRecoverCredit', autoRecoverCredit, INTERVAL_1MIN);

@@ -2,9 +2,10 @@ import bcrypt from 'bcryptjs'
 import path from 'path'
 import fs from 'fs'
 import { eq, and, inArray, sql } from 'drizzle-orm'
-import { BaseService, AppError } from './BaseService.js'
+import { BaseService, AppError, type ServiceContext } from './BaseService.js'
 import { generateToken, blacklistToken } from '../middleware/auth.js'
 import { setDefaultPrefs } from '../notify.js'
+import { NotificationService } from './NotificationService.js'
 import { camelToSnake } from '../lib/case-transform.js'
 import { schema, getUserPermissions } from '../db/index.js'
 
@@ -14,7 +15,7 @@ export interface LoginResult {
 }
 
 export class AuthService extends BaseService {
-  async login(email: string, password: string) {
+  async login(email: string, password: string, io?: any) {
     const [user] = await this.db
       .select({
         id: schema.users.id,
@@ -51,6 +52,15 @@ export class AuthService extends BaseService {
       avatar: user.avatar,
       role_id: user.roleId,
     })
+    if (io) {
+      const notifService = new NotificationService(this.db)
+      await notifService.create({
+        userId: user.id,
+        title: 'تم تسجيل دخول جديد إلى حسابك',
+        type: 'new_login',
+      }, io)
+    }
+
     const { password: _, ...userData } = user
     const permissions = await getUserPermissions(user.id)
 
@@ -79,7 +89,7 @@ export class AuthService extends BaseService {
     return camelToSnake({ ...user, permissions })
   }
 
-  async updateProfile(userId: number, data: { name?: string; password?: string; avatar?: string }) {
+  async updateProfile(userId: number, data: { name?: string; password?: string; avatar?: string }, io?: any) {
     const updates: Record<string, any> = {}
     if (data.name) updates.name = data.name
     if (data.password) updates.password = bcrypt.hashSync(data.password, 10)
@@ -87,7 +97,19 @@ export class AuthService extends BaseService {
 
     if (Object.keys(updates).length === 0) throw new AppError(400, 'لا توجد حقول للتحديث')
 
+    const passwordChanged = !!data.password
+
     await this.db.update(schema.users).set(updates).where(eq(schema.users.id, userId))
+
+    if (passwordChanged && io) {
+      const notifService = new NotificationService(this.db)
+      await notifService.create({
+        userId,
+        title: 'تم تغيير كلمة المرور الخاصة بك',
+        type: 'password_changed',
+      }, io)
+    }
+
     return { message: 'تم تحديث الملف الشخصي' }
   }
 

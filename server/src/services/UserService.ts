@@ -5,7 +5,8 @@ import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, addActivityLog } from '../db/index.js'
 import { camelToSnake } from '../lib/case-transform.js'
-import { notifyAll, setDefaultPrefs } from '../notify.js'
+import { setDefaultPrefs } from '../notify.js'
+import { NotificationService } from './NotificationService.js'
 
 export class UserService extends BaseService {
   async list(page: number, pageSize: number, includeArchived = false) {
@@ -72,17 +73,25 @@ export class UserService extends BaseService {
     setDefaultPrefs(user.id)
 
     if (ctx.io) {
-      notifyAll({
-        type: 'user_joined', title: 'عضو جديد انضم للفريق 🎉',
-        message: `انضم ${user.name} إلى الفريق`,
-        relatedType: undefined, relatedId: undefined, io: ctx.io
-      })
+      const notifService = new NotificationService(this.db)
+      const allUsers = await this.db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.status, 'active'))
+      await notifService.createMany(
+        allUsers.map((u: any) => ({
+          userId: u.id,
+          title: `انضم عضو جديد: ${user.name}`,
+          type: 'user_joined',
+        })),
+        ctx.io,
+      )
     }
 
     return user
   }
 
-  async update(id: number, data: { name?: string; email?: string; password?: string; roleId?: number; status?: string }) {
+  async update(id: number, data: { name?: string; email?: string; password?: string; roleId?: number; status?: string }, ctx?: ServiceContext) {
     const updates: Record<string, any> = {}
     if (data.name) updates.name = data.name
     if (data.email) updates.email = data.email
@@ -91,6 +100,29 @@ export class UserService extends BaseService {
     if (data.status) updates.status = data.status
 
     if (Object.keys(updates).length === 0) throw new AppError(400, 'لا توجد حقول للتحديث')
+
+    if (data.roleId !== undefined) {
+      const [oldUser] = await this.db
+        .select({ roleId: schema.users.roleId })
+        .from(schema.users)
+        .where(eq(schema.users.id, id))
+        .limit(1)
+      if (oldUser && oldUser.roleId !== data.roleId) {
+        const [newRole] = await this.db
+          .select({ name: schema.roles.name })
+          .from(schema.roles)
+          .where(eq(schema.roles.id, data.roleId))
+          .limit(1)
+        if (newRole && ctx?.io) {
+          const notifService = new NotificationService(this.db)
+          await notifService.create({
+            userId: id,
+            title: `تم تغيير دورك إلى ${newRole.name}`,
+            type: 'role_changed',
+          }, ctx.io)
+        }
+      }
+    }
 
     await this.db.update(schema.users).set(updates).where(eq(schema.users.id, id))
     return { message: 'تم تحديث المستخدم' }

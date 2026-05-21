@@ -41,7 +41,7 @@ function tryCatch(handler: (req: any, res: any) => any) {
 }
 
 router.post('/login', validate(loginSchema), tryCatch(async (req, res) => {
-  const { user, token } = await authService.login(req.body.email, req.body.password)
+  const { user, token } = await authService.login(req.body.email, req.body.password, req.app.get('io'))
   res.cookie('token', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -58,7 +58,7 @@ router.get('/me', authenticate, tryCatch(async (req, res) => {
 }))
 
 router.put('/profile', authenticate, validate(updateProfileSchema), tryCatch(async (req, res) => {
-  const result = await authService.updateProfile(req.user.id, req.body)
+  const result = await authService.updateProfile(req.user.id, req.body, req.app.get('io'))
   res.success(result)
 }))
 

@@ -4,7 +4,7 @@ import { ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema } from '../db/index.js'
-import { notifyUser, notifyAll } from '../notify.js'
+import { NotificationService } from './NotificationService.js'
 
 export interface UploadedFile {
   filename: string
@@ -69,12 +69,23 @@ export class UploadService extends BaseService {
     }
 
     if (ctx.io) {
+      const notifService = new NotificationService(this.db)
       if (entityType === 'project') {
-        notifyAll({
-          type: 'file_uploaded', title: 'ملف جديد في المشروع',
-          message: `${ctx.userName} رفع ${inserted.length} ملف (ملفات) في المشروع`,
-          relatedType: 'project', relatedId: entityId, io: ctx.io
-        })
+        const allUsers = await this.db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(eq(schema.users.status, 'active'))
+        await notifService.createMany(
+          allUsers.map((u: any) => ({
+            userId: u.id,
+            title: 'ملف جديد في المشروع',
+            message: `${ctx.userName} رفع ${inserted.length} ملف في المشروع`,
+            type: 'file_uploaded',
+            relatedType: 'project',
+            relatedId: entityId,
+          })),
+          ctx.io,
+        )
       } else if (entityType === 'subtask') {
         const [subtask] = await this.db
           .select({ assignedTo: schema.subtasks.assignedTo, title: schema.subtasks.title })
@@ -82,11 +93,14 @@ export class UploadService extends BaseService {
           .where(eq(schema.subtasks.id, entityId))
           .limit(1)
         if (subtask?.assignedTo && subtask.assignedTo !== ctx.userId) {
-          notifyUser({
-            userId: subtask.assignedTo, type: 'file_uploaded', title: 'ملف جديد على مهمتك',
-            message: `${ctx.userName} رفع ${inserted.length} ملف على "${subtask.title}"`,
-            relatedType: 'subtask', relatedId: entityId, io: ctx.io
-          })
+          const originalName = files[0]?.originalname || ''
+          await notifService.create({
+            userId: subtask.assignedTo,
+            title: `تم رفع ملف في المهمة: ${originalName}`,
+            type: 'file_uploaded',
+            relatedType: 'subtask',
+            relatedId: entityId,
+          }, ctx.io)
         }
       }
     }

@@ -41,7 +41,7 @@ router.post('/', authenticate, authorize(ROLES.ADMIN), validate(createUserSchema
 }))
 
 router.put('/:id', authenticate, authorize(ROLES.ADMIN), validate(updateUserSchema), tryCatch(async (req, res) => {
-  const result = await userService.update(Number(req.params.id), req.body)
+  const result = await userService.update(Number(req.params.id), req.body, ctx(req))
   res.success(result)
 }))
 

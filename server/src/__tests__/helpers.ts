@@ -195,6 +195,11 @@ export function createTestDb() {
     { typeKey: 'warning', typeGroup: 'إنذارات', name: 'إنذار جديد', description: 'عند إصدار إنذار بحقك', defaultEnabled: 1 },
     { typeKey: 'deadline_approaching_24h', typeGroup: 'مواعيد', name: 'قبل 24 ساعة', description: 'تذكير قبل الموعد النهائي', defaultEnabled: 1 },
     { typeKey: 'info', typeGroup: 'أخرى', name: 'معلومات', description: 'إشعارات عامة', defaultEnabled: 1 },
+    { typeKey: 'file_uploaded', typeGroup: 'ملفات', name: 'رفع ملف', description: 'عند رفع ملف', defaultEnabled: 1 },
+    { typeKey: 'user_joined', typeGroup: 'فريق', name: 'انضمام عضو', description: 'عند انضمام عضو جديد', defaultEnabled: 1 },
+    { typeKey: 'role_changed', typeGroup: 'فريق', name: 'تغيير دور', description: 'عند تغيير دورك', defaultEnabled: 1 },
+    { typeKey: 'new_login', typeGroup: 'أمان', name: 'تسجيل دخول', description: 'عند تسجيل الدخول', defaultEnabled: 1 },
+    { typeKey: 'password_changed', typeGroup: 'أمان', name: 'تغيير كلمة المرور', description: 'عند تغيير كلمة المرور', defaultEnabled: 1 },
   ]).run()
 
   return db
