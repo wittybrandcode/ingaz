@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react'
 import api from '../lib/api'
 import TopBar from './TopBar'
 import { ToastProvider } from './Toast'
+import ErrorBoundary from './ErrorBoundary'
 import type { RestrictionLevel } from '../types'
 
 export default function Layout() {
@@ -49,7 +50,7 @@ export default function Layout() {
       <TopBar />
 
       <main className={`flex-1 ${isBoard ? 'overflow-hidden' : 'overflow-auto p-4 md:p-6'}`}>
-        <Outlet />
+        <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
 
       {showScrollTop && (

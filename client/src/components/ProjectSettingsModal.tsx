@@ -80,10 +80,14 @@ export default function ProjectSettingsModal({ project, onClose, onUpdate, onDel
     setExporting(true)
     try {
       const { data: tasks } = await api.get<Task[]>(`/tasks/project/${project.id}`)
+      const taskIds = tasks.map(t => t.id)
       const allSubtasks: Record<number, Subtask[]> = {}
-      for (const t of tasks) {
-        const { data: subs } = await api.get<Subtask[]>(`/subtasks/task/${t.id}`)
-        allSubtasks[t.id] = subs
+      if (taskIds.length > 0) {
+        const { data: subs } = await api.get<Subtask[]>(`/subtasks/by-tasks`, { params: { task_ids: taskIds.join(',') } })
+        for (const s of subs) {
+          if (!allSubtasks[s.task_id]) allSubtasks[s.task_id] = []
+          allSubtasks[s.task_id].push(s)
+        }
       }
 
       const rows = [['المهمة', 'المهمة الفرعية', 'الحالة', 'المسؤول', 'تاريخ التسليم', 'تاريخ الإنشاء']]

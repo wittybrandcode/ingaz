@@ -1,5 +1,6 @@
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore';
+import { useAppStore } from '../store/appStore';
 
 const socket = io(import.meta.env.PROD ? '/' : 'http://localhost:3001', {
   transports: ['polling', 'websocket'],
@@ -21,6 +22,14 @@ socket.on('disconnect', (reason) => {
 
 socket.on('connect', () => {
   console.log('Socket connected:', socket.id);
+});
+
+socket.on('subtask:updated', (data: { id: number; status: string }) => {
+  useAppStore.getState().pushSubtaskUpdate(data);
+});
+
+socket.on('list:update', (data: { type: string; action: string; data: Record<string, unknown> }) => {
+  useAppStore.getState().pushListUpdate(data);
 });
 
 let prevUserId: number | null = null;

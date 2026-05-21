@@ -136,6 +136,32 @@ export class SubtaskService extends BaseService {
     return { data: withAssignees, total, pages: Math.ceil(total / pageSize), page, pageSize }
   }
 
+  async listByTasks(taskIds: number[]) {
+    if (taskIds.length === 0) return []
+    const subtasks = await this.db
+      .select({
+        id: schema.subtasks.id,
+        taskId: schema.subtasks.taskId,
+        title: schema.subtasks.title,
+        description: schema.subtasks.description,
+        assignedTo: schema.subtasks.assignedTo,
+        status: schema.subtasks.status,
+        deadline: schema.subtasks.deadline,
+        winnerCommentId: schema.subtasks.winnerCommentId,
+        createdAt: schema.subtasks.createdAt,
+        assignedToName: schema.users.name,
+        assignedToAvatar: schema.users.avatar,
+      })
+      .from(schema.subtasks)
+      .leftJoin(schema.users, eq(schema.subtasks.assignedTo, schema.users.id))
+      .where(inArray(schema.subtasks.taskId, taskIds))
+      .orderBy(sql`${schema.subtasks.createdAt} DESC`)
+
+    const ids = subtasks.map((s: any) => s.id)
+    const bulk = await getBulkSubtaskAssignees(ids)
+    return subtasks.map((s: any) => ({ ...s, assignees: bulk[s.id] || [] }))
+  }
+
   async listByTask(taskId: number, page: number, pageSize: number) {
     page = Math.max(1, page)
     pageSize = Math.min(PAGINATION.MAX_PAGE_SIZE, Math.max(1, pageSize || PAGINATION.DEFAULT_PAGE_SIZE))

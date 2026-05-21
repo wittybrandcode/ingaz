@@ -44,6 +44,12 @@ router.get('/task/:taskId', authenticate, async (req: any, res: any) => {
   res.success(result.data)
 })
 
+router.get('/by-tasks', authenticate, async (req: any, res: any) => {
+  const taskIds = String(req.query.task_ids).split(',').map(Number)
+  const result = await subtaskService.listByTasks(taskIds)
+  res.success(result)
+})
+
 router.get('/:id', authenticate, tryCatch(async (req, res) => {
   const subtask = await subtaskService.getById(Number(req.params.id))
   res.success(subtask)

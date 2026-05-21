@@ -16,6 +16,10 @@ interface AppState {
   loadRoles: () => Promise<void>
   loadProjects: () => Promise<void>
   updateUsers: (fn: (prev: User[]) => User[]) => void
+  lastSubtaskUpdate: { id: number; status: string } | null
+  lastListUpdate: { type: string; action: string; data: Record<string, unknown> } | null
+  pushSubtaskUpdate: (update: { id: number; status: string }) => void
+  pushListUpdate: (update: { type: string; action: string; data: Record<string, unknown> }) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -54,4 +58,9 @@ export const useAppStore = create<AppState>((set) => ({
   },
 
   updateUsers: (fn) => set(s => ({ users: fn(s.users) })),
+
+  lastSubtaskUpdate: null,
+  lastListUpdate: null,
+  pushSubtaskUpdate: (update) => set({ lastSubtaskUpdate: update }),
+  pushListUpdate: (update) => set({ lastListUpdate: update }),
 }))

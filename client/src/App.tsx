@@ -3,6 +3,7 @@ import { useAuthStore } from './store/authStore'
 import { ROLES } from './constants'
 import { useEffect, lazy, Suspense } from 'react'
 import Layout from './components/Layout'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -43,8 +44,8 @@ export default function App() {
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/frozen" element={<FrozenAccount />} />
+        <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
+        <Route path="/frozen" element={<ErrorBoundary><FrozenAccount /></ErrorBoundary>} />
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/projects" replace />} />
           <Route path="dashboard" element={<Dashboard />} />

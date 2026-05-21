@@ -7,8 +7,8 @@ import Avatar from '../components/Avatar'
 import Comments from '../components/Comments'
 import FilePreview, { type FileItem } from '../components/FilePreview'
 import AudioPreview from '../components/AudioPreview'
-import socket from '../lib/socket'
 import { useAuthStore } from '../store/authStore'
+import { useAppStore } from '../store/appStore'
 import { ROLES } from '../constants'
 import type { SubtaskData } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
@@ -47,18 +47,13 @@ export default function SubtaskPage() {
   useEffect(() => { loadAll() }, [id])
 
   useEffect(() => {
-    const debounceRef = { current: null as ReturnType<typeof setTimeout> | null }
-    const subtaskUpdated = (st: { id: number }) => {
-      if (st.id === Number(id)) {
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-        debounceRef.current = setTimeout(() => loadAll(), 300)
+    const unsub = useAppStore.subscribe((state, prev) => {
+      const u = state.lastSubtaskUpdate
+      if (u && u.id === Number(id) && u !== prev.lastSubtaskUpdate) {
+        setSubtask(prevSt => prevSt ? { ...prevSt, status: u.status as SubtaskData['status'] } : prevSt)
       }
-    }
-    socket.on('subtask:updated', subtaskUpdated)
-    return () => {
-      socket.off('subtask:updated', subtaskUpdated)
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
+    })
+    return unsub
   }, [id])
 
   const canUpload = user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY
