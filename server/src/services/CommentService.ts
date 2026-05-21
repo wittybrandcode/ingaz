@@ -1,10 +1,12 @@
-import { eq, and, not, inArray, sql } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 import { ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees } from '../db/index.js'
+import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees, getDb } from '../db/index.js'
 import { notifyUser, parseMentions, notifyAll } from '../notify.js'
 import { camelToSnake } from '../lib/case-transform.js'
+import { NotificationService } from './NotificationService.js'
+const notifService = new NotificationService(getDb())
 
 export class CommentService extends BaseService {
   async getBySubtask(subtaskId: number) {
@@ -85,45 +87,31 @@ export class CommentService extends BaseService {
       .where(eq(schema.subtasks.id, data.subtask_id))
       .limit(1)
 
-    if (subtask && ctx.io) {
+    if (subtask) {
       if (subtask.assignedTo && subtask.assignedTo !== ctx.userId) {
-        notifyUser({
-          userId: subtask.assignedTo, type: 'comment',
-          title: 'تعليق جديد على مهمتك',
-          message: `${ctx.userName} علّق على "${subtask.title}": ${data.content.trim().slice(0, 100)}`,
-          relatedType: 'subtask', relatedId: subtask.id, io: ctx.io,
-        })
+        notifService.create({
+          userId: subtask.assignedTo,
+          type: 'comment',
+          title: `${ctx.userName} علّق على مهمتك`,
+          message: data.content.trim().slice(0, 100),
+          relatedType: 'subtask',
+          relatedId: subtask.id,
+        }, ctx.io)
       }
 
-      const managers = await this.db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(
-          and(
-            inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]),
-            not(eq(schema.users.id, ctx.userId)),
-          )
-        )
-      for (const m of managers) {
-        if (m.id !== subtask.assignedTo) {
-          notifyUser({
-            userId: m.id, type: 'comment', title: 'تعليق جديد',
-            message: `${ctx.userName} علّق على "${subtask.title}": ${data.content.trim().slice(0, 100)}`,
-            relatedType: 'subtask', relatedId: subtask.id, io: ctx.io,
-          })
-        }
-      }
-    }
-
-    const mentionedIds = await parseMentions(data.content)
-    for (const mid of mentionedIds) {
-      if (mid !== ctx.userId && ctx.io) {
-        notifyUser({
-          userId: mid, type: '@mention',
-          title: `تمت الإشارة إليك من ${ctx.userName}`,
-          message: `في تعليق على "${subtask?.title}": ${data.content.trim().slice(0, 100)}`,
-          relatedType: 'subtask', relatedId: subtask?.id, io: ctx.io,
-        })
+      const mentionedIds = await parseMentions(data.content)
+      const mentionItems = mentionedIds
+        .filter(mid => mid !== ctx.userId)
+        .map(mid => ({
+          userId: mid,
+          type: '@mention',
+          title: `${ctx.userName} أشار إليك في تعليق`,
+          message: data.content.trim().slice(0, 100),
+          relatedType: 'subtask',
+          relatedId: subtask.id,
+        }))
+      if (mentionItems.length > 0) {
+        notifService.createMany(mentionItems, ctx.io)
       }
     }
 

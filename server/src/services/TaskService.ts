@@ -3,8 +3,10 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { ROLES, PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, isProjectManager, getTaskAssignees } from '../db/index.js'
-import { notifyAll, notifyUser } from '../notify.js'
+import { schema, addActivityLog, getDb, isProjectManager, getTaskAssignees } from '../db/index.js'
+import { notifyUser } from '../notify.js'
+import { NotificationService } from './NotificationService.js'
+const notifService = new NotificationService(getDb())
 import { camelToSnake } from '../lib/case-transform.js'
 
 export class TaskService extends BaseService {
@@ -156,14 +158,21 @@ export class TaskService extends BaseService {
       .limit(1)
 
     if (ctx.io) {
-      notifyAll({
-        type: 'task_created',
-        title: 'مهمة جديدة',
-        message: `${ctx.userName} أضاف مهمة "${data.title}" في مشروع "${project?.projectTitle}"`,
-        relatedType: 'project',
-        relatedId: data.project_id,
-        io: ctx.io
-      })
+      const members = await this.db
+        .select({ userId: schema.projectMembers.userId })
+        .from(schema.projectMembers)
+        .where(eq(schema.projectMembers.projectId, data.project_id))
+      notifService.createMany(
+        members.map((m: any) => ({
+          userId: m.userId,
+          type: 'task_created',
+          title: `مهمة جديدة: ${cleanTitle}`,
+          message: `${ctx.userName} أضاف مهمة "${data.title}" في مشروع "${project?.projectTitle}"`,
+          relatedType: 'task',
+          relatedId: task.id,
+        })),
+        ctx.io,
+      )
     }
 
     return task
@@ -207,14 +216,21 @@ export class TaskService extends BaseService {
     if (changes.length > 0) {
       await addActivityLog(ctx.userId, 'update_task', `حدّث مهمة "${old?.title}": ${changes.join('، ')}`)
       if (ctx.io) {
-        notifyAll({
-          type: 'task_updated',
-          title: 'تحديث مهمة',
-          message: `${ctx.userName} حدّث مهمة "${old?.title}" في مشروع "${project?.title}": ${changes.join('، ')}`,
-          relatedType: 'project',
-          relatedId: task.projectId,
-          io: ctx.io
-        })
+        const members = await this.db
+          .select({ userId: schema.projectMembers.userId })
+          .from(schema.projectMembers)
+          .where(eq(schema.projectMembers.projectId, task.projectId))
+        notifService.createMany(
+          members.map((m: any) => ({
+            userId: m.userId,
+            type: 'task_updated',
+            title: `تحديث مهمة: ${old?.title}`,
+            message: `${ctx.userName} حدّث مهمة "${old?.title}" في مشروع "${project?.title}": ${changes.join('، ')}`,
+            relatedType: 'task',
+            relatedId: task.id,
+          })),
+          ctx.io,
+        )
       }
     }
 
@@ -238,14 +254,21 @@ export class TaskService extends BaseService {
     await addActivityLog(ctx.userId, 'archive_task', `أرشف مهمة "${task?.title}" في مشروع "${project?.title}"`)
 
     if (ctx.io) {
-      notifyAll({
-        type: 'task_archived',
-        title: 'أرشفة مهمة',
-        message: `${ctx.userName} أرشف مهمة "${task?.title}" في مشروع "${project?.title}"`,
-        relatedType: 'project',
-        relatedId: task?.projectId,
-        io: ctx.io
-      })
+      const members = await this.db
+        .select({ userId: schema.projectMembers.userId })
+        .from(schema.projectMembers)
+        .where(eq(schema.projectMembers.projectId, task.projectId))
+      notifService.createMany(
+        members.map((m: any) => ({
+          userId: m.userId,
+          type: 'task_archived',
+          title: `تم أرشفة مهمة: ${task?.title}`,
+          message: `${ctx.userName} أرشف مهمة "${task?.title}" في مشروع "${project?.title}"`,
+          relatedType: 'task',
+          relatedId: task.id,
+        })),
+        ctx.io,
+      )
     }
 
     return { message: 'تم أرشفة المهمة' }

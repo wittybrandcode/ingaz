@@ -5,8 +5,10 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { ROLES, PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog } from '../db/index.js'
-import { notifyAll, notifyUser } from '../notify.js'
+import { schema, addActivityLog, getDb } from '../db/index.js'
+import { notifyUser } from '../notify.js'
+import { NotificationService } from './NotificationService.js'
+const notifService = new NotificationService(getDb())
 import { camelToSnake } from '../lib/case-transform.js'
 
 export class ProjectService extends BaseService {
@@ -152,14 +154,20 @@ export class ProjectService extends BaseService {
     await addActivityLog(ctx.userId, 'create_project', `أنشأ مشروع "${cleanTitle}"`)
 
     if (ctx.io) {
-      notifyAll({
-        type: 'project_created',
-        title: 'مشروع جديد',
-        message: `${ctx.userName} أنشأ مشروع "${data.title}"`,
-        relatedType: 'project',
-        relatedId: project.id,
-        io: ctx.io
-      })
+      const adminsAndDeputies = await this.db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
+      notifService.createMany(
+        adminsAndDeputies.map((u: any) => ({
+          userId: u.id,
+          type: 'project_created',
+          title: `تم إنشاء مشروع جديد: ${cleanTitle}`,
+          relatedType: 'project',
+          relatedId: project.id,
+        })),
+        ctx.io,
+      )
       ctx.io.emit('list:update', { type: 'project', action: 'created', data: { ...camelToSnake(project), tasks_count: 0, created_by_name: ctx.userName, created_by_avatar: ctx.userAvatar } })
     }
 
@@ -199,14 +207,21 @@ export class ProjectService extends BaseService {
     if (changes.length > 0) {
       await addActivityLog(ctx.userId, 'update_project', `حدّث مشروع "${old?.title}": ${changes.join('، ')}`)
       if (ctx.io) {
-        notifyAll({
-          type: 'project_updated',
-          title: 'تحديث مشروع',
-          message: `${ctx.userName} حدّث مشروع "${old?.title}": ${changes.join('، ')}`,
-          relatedType: 'project',
-          relatedId: project.id,
-          io: ctx.io
-        })
+        const members = await this.db
+          .select({ userId: schema.projectMembers.userId })
+          .from(schema.projectMembers)
+          .where(eq(schema.projectMembers.projectId, id))
+        notifService.createMany(
+          members.map((m: any) => ({
+            userId: m.userId,
+            type: 'project_updated',
+            title: `تم تحديث المشروع: ${project?.title}`,
+            message: `${ctx.userName} حدّث مشروع "${old?.title}": ${changes.join('، ')}`,
+            relatedType: 'project',
+            relatedId: project.id,
+          })),
+          ctx.io,
+        )
       }
     }
 
@@ -219,14 +234,20 @@ export class ProjectService extends BaseService {
     await addActivityLog(ctx.userId, 'archive_project', `أرشف مشروع "${project?.title}"`)
     if (ctx.io) {
       ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
-      notifyAll({
-        type: 'project_archived',
-        title: 'أرشفة مشروع',
-        message: `${ctx.userName} أرشف مشروع "${project?.title}"`,
-        relatedType: 'project',
-        relatedId: Number(id),
-        io: ctx.io
-      })
+      const members = await this.db
+        .select({ userId: schema.projectMembers.userId })
+        .from(schema.projectMembers)
+        .where(eq(schema.projectMembers.projectId, id))
+      notifService.createMany(
+        members.map((m: any) => ({
+          userId: m.userId,
+          type: 'project_archived',
+          title: `تم أرشفة المشروع: ${project?.title}`,
+          relatedType: 'project',
+          relatedId: Number(id),
+        })),
+        ctx.io,
+      )
     }
     return { message: 'تم أرشفة المشروع' }
   }
@@ -264,6 +285,23 @@ export class ProjectService extends BaseService {
       }
     }
 
+    if (ctx.io) {
+      const members = await this.db
+        .select({ userId: schema.projectMembers.userId })
+        .from(schema.projectMembers)
+        .where(eq(schema.projectMembers.projectId, id))
+      notifService.createMany(
+        members.map((m: any) => ({
+          userId: m.userId,
+          type: 'project_deleted',
+          title: `تم حذف المشروع: ${project?.title}`,
+          relatedType: 'project',
+          relatedId: Number(id),
+        })),
+        ctx.io,
+      )
+    }
+
     await this.db.transaction(async (tx: any) => {
       for (const tid of [Number(id), ...taskIds, ...subtaskIds]) {
         await tx
@@ -286,14 +324,6 @@ export class ProjectService extends BaseService {
     })
     if (ctx.io) {
       ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
-      notifyAll({
-        type: 'project_deleted',
-        title: 'حذف مشروع',
-        message: `${ctx.userName} حذف مشروع "${project?.title}" نهائياً`,
-        relatedType: 'project',
-        relatedId: undefined,
-        io: ctx.io
-      })
     }
 
     return { message: 'تم حذف المشروع نهائياً' }
