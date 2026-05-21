@@ -1,12 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import api from '../lib/api'
-import { AlertTriangle, CheckCircle2, XCircle, Snowflake, Clock, MessageSquare, Unlock, Loader2, Search } from 'lucide-react'
+import { AlertTriangle, Snowflake, Unlock, Loader2, Search, MessageSquare, CheckCircle2, XCircle } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import { useToast } from '../components/Toast'
 import { useAppStore } from '../store/appStore'
 import { ROLES } from '../constants'
 import type { Warning, WarningType } from '../types'
+import { WARNING_STATUS_CONFIG } from '../statusConfig'
 
 export default function WarningsAdmin() {
   const { toast } = useToast()
@@ -55,13 +56,7 @@ export default function WarningsAdmin() {
            (w.issued_by_name && w.issued_by_name.toLowerCase().includes(q))
   }), [warnings, tab, searchQuery])
 
-  const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
-    pending: { label: 'بانتظار الرد', color: 'text-yellow-600', bg: 'bg-yellow-100', icon: Clock },
-    responded: { label: 'تم الرد', color: 'text-blue-600', bg: 'bg-blue-100', icon: MessageSquare },
-    cleared: { label: 'تم الفك', color: 'text-green-600', bg: 'bg-green-100', icon: CheckCircle2 },
-    sustained: { label: 'قائم', color: 'text-red-600', bg: 'bg-red-100', icon: XCircle },
-    ignored: { label: 'تم التجاهل', color: 'text-gray-600', bg: 'bg-gray-100', icon: XCircle },
-  }
+  const statusConfig = WARNING_STATUS_CONFIG
 
   const handleIssue = async (e: React.FormEvent) => {
     e.preventDefault()

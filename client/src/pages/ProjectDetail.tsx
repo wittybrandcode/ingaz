@@ -4,8 +4,7 @@ import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
 import { ROLES } from '../constants'
 import {
-  ArrowRight, CheckCircle2, Clock, AlertCircle, Send,
-  XCircle, Edit3, Check, X, Loader2
+  ArrowRight, Edit3, Check, X, Loader2, AlertCircle
 } from 'lucide-react'
 import socket from '../lib/socket'
 import FileUpload from '../components/FileUpload'
@@ -20,14 +19,7 @@ import TaskList from '../components/ProjectDetail/TaskList'
 import SubtaskPanel from '../components/ProjectDetail/SubtaskPanel'
 import type { ProjectDetail, Task, Subtask, Attachment } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
-
-const statusConfig = {
-  pending: { label: 'بانتظار البدء', icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', dot: 'bg-gray-400' },
-  in_progress: { label: 'قيد التنفيذ', icon: AlertCircle, color: 'text-blue-600', bg: 'bg-blue-100', dot: 'bg-blue-500' },
-  submitted: { label: 'تم التسليم', icon: Send, color: 'text-yellow-600', bg: 'bg-yellow-100', dot: 'bg-yellow-500' },
-  approved: { label: 'مقبول', icon: CheckCircle2, color: 'text-green-600', bg: 'bg-green-100', dot: 'bg-green-500' },
-  rejected: { label: 'مرفوض', icon: XCircle, color: 'text-red-600', bg: 'bg-red-100', dot: 'bg-red-500' },
-}
+import { TICKET_STATUS_CONFIG as statusConfig } from '../statusConfig'
 
 export default function ProjectDetail() {
   const { id } = useParams()

@@ -169,6 +169,19 @@ export interface Role {
   permissions?: string[]
 }
 
+export interface NotificationRelated {
+  id: number
+  title: string
+  description?: string | null
+  status?: string
+  assigned_to?: number | null
+  deadline?: string | null
+  task_id?: number
+  task_title?: string
+  project_id?: number
+  project_title?: string
+}
+
 export interface Notification {
   id: number
   user_id: number
@@ -179,8 +192,7 @@ export interface Notification {
   related_type: string | null
   related_id: number | null
   created_at: string
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  related: any
+  related: NotificationRelated | null
 }
 
 export interface DashboardData {

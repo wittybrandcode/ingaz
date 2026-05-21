@@ -1,23 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { Settings, Pencil, Snowflake, Trash2, CheckCircle2, Clock, Send, XCircle, AlertCircle } from 'lucide-react'
+import { Settings, Pencil, Snowflake, Trash2, Clock } from 'lucide-react'
 import api from '../lib/api'
 import { useToast } from './Toast'
 import AvatarStack from './AvatarStack'
 import type { Subtask } from '../types'
+import { SUBTASK_CARD_STATUS_CONFIG as statusConfig } from '../statusConfig'
 
 interface SubtaskCardProps {
   subtask: Subtask
   onSelect: (type: string, item: any) => void
   onView?: () => void
   index: number
-}
-
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }> }> = {
-  pending:     { label: 'معلّقة',   color: 'text-gray-600', bg: 'bg-gray-100', icon: AlertCircle },
-  in_progress: { label: 'جارية',    color: 'text-amber-600', bg: 'bg-amber-50', icon: Clock },
-  submitted:   { label: 'مقدّمة',   color: 'text-purple-600', bg: 'bg-purple-50', icon: Send },
-  approved:    { label: 'مكتملة',   color: 'text-green-600', bg: 'bg-green-50', icon: CheckCircle2 },
-  rejected:    { label: 'مرفوضة',   color: 'text-red-600', bg: 'bg-red-50', icon: XCircle },
 }
 
 const statusBar: Record<string, string> = {

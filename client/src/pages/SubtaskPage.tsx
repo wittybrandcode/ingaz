@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../lib/api'
 
-import { ArrowRight, Clock, AlertCircle, CheckCircle2, XCircle, Paperclip, Loader2, File, Music } from 'lucide-react'
+import { ArrowRight, Paperclip, Loader2, File, Music } from 'lucide-react'
 import Avatar from '../components/Avatar'
 import Comments from '../components/Comments'
 import FilePreview, { type FileItem } from '../components/FilePreview'
@@ -12,14 +12,7 @@ import { useAppStore } from '../store/appStore'
 import { ROLES } from '../constants'
 import type { SubtaskData } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
-
-
-const statusConfig: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string }> = {
-  open: { label: 'مفتوحة', icon: Clock, color: 'text-gray-700', bg: 'bg-gray-100' },
-  completed: { label: 'منفذة', icon: CheckCircle2, color: 'text-green-700', bg: 'bg-green-100' },
-  cancelled: { label: 'ملغية', icon: XCircle, color: 'text-red-700', bg: 'bg-red-100' },
-  deferred: { label: 'مؤجلة', icon: AlertCircle, color: 'text-yellow-700', bg: 'bg-yellow-100' },
-}
+import { SUBTASK_STATUS_CONFIG as statusConfig } from '../statusConfig'
 
 interface Attachment {
   id: number; filename: string; original_name: string

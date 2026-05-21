@@ -41,7 +41,7 @@ export function blacklistToken(token: string): void {
       tokenBlacklist.set(token, expiry)
       persistBlacklist(token, expiry).catch(() => {})
     }
-  } catch {}
+  } catch { /* jwt.decode may throw on malformed tokens */ }
 }
 
 async function persistBlacklist(token: string, expirySec: number) {

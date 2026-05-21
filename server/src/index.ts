@@ -239,7 +239,7 @@ async function checkDeadlines() {
           subtaskId: s.id,
           reminderType: '24h',
         })
-      } catch {}
+      } catch { /* duplicate key — reminder already inserted */ }
       notifyUser({
         userId: s.assignedTo,
         type: 'deadline_approaching_24h',
@@ -264,7 +264,7 @@ async function checkDeadlines() {
           subtaskId: s.id,
           reminderType: '6h',
         })
-      } catch {}
+      } catch { /* duplicate key — reminder already inserted */ }
       notifyUser({
         userId: s.assignedTo,
         type: 'deadline_approaching_6h',
@@ -289,7 +289,7 @@ async function checkDeadlines() {
           subtaskId: s.id,
           reminderType: 'overdue',
         })
-      } catch {}
+      } catch { /* duplicate key — reminder already inserted */ }
       notifyUser({
         userId: s.assignedTo,
         type: 'deadline_overdue',
@@ -441,11 +441,26 @@ async function checkExpiredWarnings() {
 
 const INTERVAL_1MIN = 60000;
 
-function safeInterval(fn: () => Promise<void>, ms: number) {
-  setInterval(() => { fn().catch(e => console.error('Background job error:', e)); }, ms);
-  fn().catch(e => console.error('Background job initial run error:', e));
+const jobRegistry = new Map<string, Promise<void>>();
+
+function safeInterval(name: string, fn: () => Promise<void>, ms: number) {
+  const run = async () => {
+    if (jobRegistry.has(name)) {
+      logger.warn({ job: name }, 'Background job skipped — previous run still in progress');
+      return;
+    }
+    const promise = fn().catch(e => {
+      logger.error({ job: name, err: e }, 'Background job error');
+    }).finally(() => {
+      jobRegistry.delete(name);
+    });
+    jobRegistry.set(name, promise);
+    await promise;
+  };
+  setInterval(run, ms);
+  run();
 }
 
-safeInterval(checkDeadlines, INTERVAL_1MIN);
-safeInterval(checkExpiredWarnings, INTERVAL_1MIN);
-safeInterval(autoRecoverCredit, INTERVAL_1MIN);
+safeInterval('checkDeadlines', checkDeadlines, INTERVAL_1MIN);
+safeInterval('checkExpiredWarnings', checkExpiredWarnings, INTERVAL_1MIN);
+safeInterval('autoRecoverCredit', autoRecoverCredit, INTERVAL_1MIN);

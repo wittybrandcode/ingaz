@@ -4,11 +4,8 @@ import api from '../../lib/api'
 import SubtaskRow from '../SubtaskRow'
 import { useToast } from '../Toast'
 import { ROLES } from '../../constants'
+import type { StatusConfig } from '../../statusConfig'
 import type { Subtask, Attachment, User } from '../../types'
-
-interface StatusConfig {
-  [key: string]: { label: string; icon: any; color: string; bg: string; dot: string }
-}
 
 interface SubtaskPanelProps {
   subtasks: Subtask[]

@@ -2,16 +2,9 @@ import React from 'react'
 import { Clock, Paperclip, File, Check, X, Loader2 } from 'lucide-react'
 import { STATUS_LABELS, type Subtask, type Attachment, type User, type Assignee } from '../types'
 import { ROLES } from '../constants'
+import type { StatusConfig } from '../statusConfig'
 import Avatar from './Avatar'
 import AssigneePicker from './AssigneePicker'
-
-type StatusConfig = Record<string, {
-  label: string
-  icon: React.ComponentType<{ className?: string }>
-  color: string
-  bg: string
-  dot: string
-}>
 
 interface SubtaskRowProps {
   subtask: Subtask
