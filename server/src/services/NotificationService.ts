@@ -210,6 +210,89 @@ export class NotificationService extends BaseService {
     return { pendingSubtasks, overdue, todayDue, stats }
   }
 
+  async isEnabled(userId: number, typeKey: string): Promise<boolean> {
+    const [pref] = await this.db
+      .select({ enabled: schema.notificationPreferences.enabled })
+      .from(schema.notificationPreferences)
+      .where(
+        and(
+          eq(schema.notificationPreferences.userId, userId),
+          eq(schema.notificationPreferences.notificationType, typeKey),
+        )
+      )
+      .limit(1)
+    if (pref) return pref.enabled === 1
+    const [typeRow] = await this.db
+      .select({ defaultEnabled: schema.notificationTypes.defaultEnabled })
+      .from(schema.notificationTypes)
+      .where(eq(schema.notificationTypes.typeKey, typeKey))
+      .limit(1)
+    return typeRow ? typeRow.defaultEnabled === 1 : true
+  }
+
+  async create(data: {
+    userId: number
+    title: string
+    message?: string
+    type: string
+    relatedType?: string
+    relatedId?: number
+  }, io?: any) {
+    if (!await this.isEnabled(data.userId, data.type)) return null
+    await this.db.insert(schema.notifications).values({
+      userId: data.userId,
+      title: data.title,
+      message: data.message ?? null,
+      type: data.type,
+      relatedType: data.relatedType ?? null,
+      relatedId: data.relatedId ?? null,
+    })
+    const [notif] = await this.db.select().from(schema.notifications)
+      .where(eq(schema.notifications.userId, data.userId))
+      .orderBy(sql`${schema.notifications.createdAt} DESC`)
+      .limit(1)
+    if (notif && io) {
+      try { io.to(`user:${data.userId}`).emit('notification', notif) } catch { /* socket send failed silently */ }
+    }
+    return notif || null
+  }
+
+  async createMany(items: {
+    userId: number
+    title: string
+    message?: string
+    type: string
+    relatedType?: string
+    relatedId?: number
+  }[], io?: any) {
+    const enabledItems: typeof items = []
+    for (const item of items) {
+      if (await this.isEnabled(item.userId, item.type)) {
+        enabledItems.push(item)
+      }
+    }
+    if (enabledItems.length === 0) return []
+    await this.db.insert(schema.notifications).values(
+      enabledItems.map(item => ({
+        userId: item.userId,
+        title: item.title,
+        message: item.message ?? null,
+        type: item.type,
+        relatedType: item.relatedType ?? null,
+        relatedId: item.relatedId ?? null,
+      }))
+    )
+    const notifs = await this.db.select().from(schema.notifications)
+      .orderBy(sql`${schema.notifications.createdAt} DESC`)
+      .limit(enabledItems.length)
+    if (io) {
+      for (let i = 0; i < notifs.length; i++) {
+        try { io.to(`user:${notifs[i].userId}`).emit('notification', notifs[i]) } catch { /* socket send failed silently */ }
+      }
+    }
+    return notifs
+  }
+
   async updateBatchTypes(userId: number, types: { id: number; enabled: boolean }[]) {
     for (const t of types) {
       const [typeRow] = await this.db

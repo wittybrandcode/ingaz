@@ -142,6 +142,8 @@ const SCHEMA_SQL = `
 export function createTestDb() {
   const sqliteDb = new Database(':memory:')
   sqliteDb.pragma('foreign_keys = ON')
+  // Register now() function for compatibility with PG-style defaultNow()
+  sqliteDb.function('now', () => new Date().toISOString())
   sqliteDb.exec(SCHEMA_SQL)
 
   const db = drizzle(sqliteDb)
@@ -180,6 +182,19 @@ export function createTestDb() {
     { name: 'غياب بدون إذن', description: 'الغياب عن العمل دون تصريح', points: 3, isActive: 1 },
     { name: 'تسليم أعمال غير مكتملة', description: 'تسليم مهام ناقصة', points: 1, isActive: 1 },
     { name: 'سلوك غير لائق', description: 'سلوك غير مهني', points: 5, isActive: 1 },
+  ]).run()
+
+  db.insert(testSchema.notificationTypes).values([
+    { typeKey: 'subtask_assigned', typeGroup: 'مهام فرعية', name: 'إسناد مهمة', description: 'عند إسناد مهمة فرعية لك', defaultEnabled: 1 },
+    { typeKey: 'comment', typeGroup: 'تعليقات', name: 'تعليق جديد', description: 'عند إضافة تعليق على مهمتك', defaultEnabled: 1 },
+    { typeKey: 'submitted', typeGroup: 'مهام فرعية', name: 'تسليم مهمة', description: 'عند تسليم مهمة للمراجعة', defaultEnabled: 1 },
+    { typeKey: 'approved', typeGroup: 'مهام فرعية', name: 'قبول مهمة', description: 'عند قبول مهمتك', defaultEnabled: 1 },
+    { typeKey: 'rejected', typeGroup: 'مهام فرعية', name: 'رفض مهمة', description: 'عند رفض مهمتك', defaultEnabled: 1 },
+    { typeKey: 'project_created', typeGroup: 'مشاريع', name: 'إنشاء مشروع', description: 'عند إنشاء مشروع جديد', defaultEnabled: 1 },
+    { typeKey: '@mention', typeGroup: 'تعليقات', name: '@إشارة', description: 'عند الإشارة إليك في تعليق', defaultEnabled: 1 },
+    { typeKey: 'warning', typeGroup: 'إنذارات', name: 'إنذار جديد', description: 'عند إصدار إنذار بحقك', defaultEnabled: 1 },
+    { typeKey: 'deadline_approaching_24h', typeGroup: 'مواعيد', name: 'قبل 24 ساعة', description: 'تذكير قبل الموعد النهائي', defaultEnabled: 1 },
+    { typeKey: 'info', typeGroup: 'أخرى', name: 'معلومات', description: 'إشعارات عامة', defaultEnabled: 1 },
   ]).run()
 
   return db
