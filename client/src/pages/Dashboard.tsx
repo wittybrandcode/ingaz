@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore'
 import api from '../lib/api'
 import { Link } from 'react-router-dom'
 import Avatar from '../components/Avatar'
+import MemberList from '../components/MemberList'
 import {
   FolderKanban, ListTodo, Users, TrendingUp, Loader2, FileSpreadsheet
 } from 'lucide-react'
@@ -101,6 +102,12 @@ export default function Dashboard() {
         ))}
       </div>
 
+      <div className="grid lg:grid-cols-4 gap-6">
+        <div className="lg:col-span-1">
+          <MemberList />
+        </div>
+        <div className="lg:col-span-3 space-y-6">
+
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl border border-gray-200 p-5">
           <h2 className="font-semibold text-gray-900 mb-4">توزيع حالات المهام</h2>
@@ -178,6 +185,8 @@ export default function Dashboard() {
             ))}
             {data.recent_activity.length === 0 && <p className="text-gray-400 text-sm">لا توجد نشاطات بعد</p>}
           </div>
+        </div>
+      </div>
         </div>
       </div>
     </div>

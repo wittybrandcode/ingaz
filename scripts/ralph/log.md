@@ -4,6 +4,18 @@
 
 ---
 
+## Phase 3 — 23-05-2026 ✅
+
+**المرحلة:** 3 — MemberCard + MemberList  
+**الحالة:** ✅ مكتملة  
+**الملفات:**
+- `client/src/components/MemberProfileCard.tsx` — جديد (ProfileAvatar + badges + online dot + إحصائيات)
+- `client/src/components/MemberList.tsx` — جديد (قائمة قابلة للتمرير مع تحميل وتحديث)
+- `client/src/pages/Dashboard.tsx` — تعديل (إضافة MemberList في sidebar)
+**التحقق:** typecheck client ✅
+
+---
+
 ## Phase 2 — 23-05-2026 ✅
 
 **المرحلة:** 2 — Member Store  
