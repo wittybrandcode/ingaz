@@ -4,7 +4,8 @@ import { useMemberStore, type MemberProfile } from '../store/memberStore'
 import MemberProfileCard from './MemberProfileCard'
 import AssignModal from './AssignModal'
 import WarnModal from './WarnModal'
-import { Loader2, AlertCircle, RefreshCw } from 'lucide-react'
+import MemberDetailModal from './MemberDetailModal'
+import { Loader2, AlertCircle, RefreshCw, Info } from 'lucide-react'
 
 export default function MemberList() {
   const members = useMemberStore(s => s.members)
@@ -16,6 +17,7 @@ export default function MemberList() {
   const user = useAuthStore(s => s.user)
   const [assignTarget, setAssignTarget] = useState<MemberProfile | null>(null)
   const [warnTarget, setWarnTarget] = useState<MemberProfile | null>(null)
+  const [detailTarget, setDetailTarget] = useState<MemberProfile | null>(null)
 
   useEffect(() => { loadMembers() }, [])
 
@@ -56,6 +58,13 @@ export default function MemberList() {
       {selectedMember && (
         <div className="mt-3 pt-3 border-t border-gray-100">
           <div className="flex items-center justify-center gap-2">
+            <button
+              onClick={() => { selectMember(null); setDetailTarget(selectedMember) }}
+              className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors text-xs"
+            >
+              <Info className="w-4 h-4" />
+              تفاصيل
+            </button>
             {selectedMember.can_assign && user?.is_manager && (
               <button
                 onClick={() => { selectMember(null); setAssignTarget(selectedMember) }}
@@ -80,6 +89,7 @@ export default function MemberList() {
 
       {assignTarget && <AssignModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
       {warnTarget && <WarnModal member={warnTarget} onClose={() => setWarnTarget(null)} />}
+      {detailTarget && <MemberDetailModal member={detailTarget} onClose={() => setDetailTarget(null)} />}
     </div>
   )
 }

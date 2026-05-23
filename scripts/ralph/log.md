@@ -4,7 +4,26 @@
 
 ---
 
-## Phase 5 — 23-05-2026 ✅
+## Phase 6 — 23-05-2026 ✅
+
+**المرحلة:** 6 — MemberDetailModal  
+**الحالة:** ✅ مكتملة  
+**الملفات:**
+- `server/src/services/MemberService.ts` — تعديل (إضافة getActiveTasks, getActivity)
+- `server/src/routes/members.ts` — تعديل (إضافة /:id/tasks, /:id/activity)
+- `client/src/components/MemberDetailModal.tsx` — جديد (مودال تفاصيل كامل مع إحصائيات، مهام، نشاطات)
+- `client/src/components/MemberList.tsx` — تعديل (إضافة زر تفاصيل)
+**التحقق:** typecheck server ✅ | typecheck client ✅ | test 95/95 ✅
+
+---
+
+## 🎯 ALL PHASES COMPLETE — 23-05-2026
+
+```
+<promise>FINISHED</promise>
+```
+
+**6/6 مراحل اكتملت بنجاح.** نظام الأعضاء متكامل وجاهز للاستخدام.
 
 **المرحلة:** 5 — Action Icons + Assign/Warn  
 **الحالة:** ✅ مكتملة  

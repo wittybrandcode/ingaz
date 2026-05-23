@@ -1,4 +1,4 @@
-import { eq, sql, and, count } from 'drizzle-orm'
+import { eq, sql, desc } from 'drizzle-orm'
 import { BaseService } from './BaseService.js'
 import * as schema from '../db/schema.js'
 
@@ -15,6 +15,22 @@ export interface MemberProfile {
   warnings_count: number
   projects_count: number
   can_assign: boolean
+}
+
+export interface MemberActiveTask {
+  id: number
+  title: string
+  project_title: string
+  project_id: number
+  status: string
+  deadline: string | null
+}
+
+export interface MemberActivity {
+  id: number
+  action: string
+  details: string
+  created_at: string
 }
 
 export class MemberService extends BaseService {
@@ -53,5 +69,34 @@ export class MemberService extends BaseService {
     `)
 
     return rows as unknown as MemberProfile[]
+  }
+
+  async getActiveTasks(userId: number): Promise<MemberActiveTask[]> {
+    const rows = await this.db.execute(sql`
+      SELECT DISTINCT ON (s.id)
+        s.id, s.title, s.status, s.deadline,
+        p.title AS project_title, p.id AS project_id
+      FROM subtask_assignees sa
+      JOIN subtasks s ON sa.subtask_id = s.id
+      JOIN tasks t ON s.task_id = t.id
+      JOIN projects p ON t.project_id = p.id
+      WHERE sa.user_id = ${userId}
+        AND s.status IN ('open', 'in_progress', 'deferred')
+      ORDER BY s.id, s.created_at DESC
+    `)
+
+    return rows as unknown as MemberActiveTask[]
+  }
+
+  async getActivity(userId: number, limit = 10): Promise<MemberActivity[]> {
+    const rows = await this.db.execute(sql`
+      SELECT id, action, details, created_at
+      FROM activity_logs
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+      LIMIT ${limit}
+    `)
+
+    return rows as unknown as MemberActivity[]
   }
 }
