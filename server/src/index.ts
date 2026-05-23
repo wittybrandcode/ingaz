@@ -38,6 +38,7 @@ import commentRoutes from './routes/comments.js';
 import roleRoutes from './routes/roles.js';
 import warningRoutes from './routes/warnings.js';
 import healthRoutes from './routes/health.js';
+import memberRoutes from './routes/members.js';
 import { initSentry } from './sentry.js';
 
 const logger = pino({
@@ -154,6 +155,7 @@ const mountRoutes = (prefix: string) => {
   app.use(`${prefix}/comments`, commentRoutes);
   app.use(`${prefix}/roles`, roleRoutes);
   app.use(`${prefix}/warnings`, warningRoutes);
+  app.use(`${prefix}/members`, memberRoutes);
 };
 mountRoutes('/api');
 mountRoutes(API_PREFIX);

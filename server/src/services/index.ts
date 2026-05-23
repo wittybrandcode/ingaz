@@ -11,6 +11,7 @@ import { UploadService } from './UploadService.js'
 import { RoleService } from './RoleService.js'
 import { AnalyticsService } from './AnalyticsService.js'
 import { DeadlineService } from './DeadlineService.js'
+import { MemberService } from './MemberService.js'
 
 const db = getDb()
 
@@ -26,6 +27,7 @@ export const uploadService = new UploadService(db)
 export const roleService = new RoleService(db)
 export const analyticsService = new AnalyticsService(db)
 export const deadlineService = new DeadlineService(db)
+export const memberService = new MemberService(db)
 
 export { AppError } from './BaseService.js'
 export type { ServiceContext } from './BaseService.js'
