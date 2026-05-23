@@ -191,11 +191,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-runMigrations().then(() => {
-  httpServer.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
-});
 
 const CREDIT_RECOVERY_MS = 24 * 3600000;
 
