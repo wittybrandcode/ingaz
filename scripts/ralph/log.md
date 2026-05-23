@@ -4,6 +4,18 @@
 
 ---
 
+## Phase 2 — 23-05-2026 ✅
+
+**المرحلة:** 2 — Member Store  
+**الحالة:** ✅ مكتملة  
+**الملفات:**
+- `client/src/store/memberStore.ts` — جديد (loadMembers, setOnline, selectMember)
+- `client/src/lib/socket.ts` — تعديل (user:online/offline أحداث)
+- `server/src/index.ts` — تعديل (broadcast online/offline عند connect/disconnect)
+**التحقق:** typecheck server ✅ | typecheck client ✅
+
+---
+
 ## Phase 1 — 23-05-2026 ✅
 
 **المرحلة:** 1 — Member API  

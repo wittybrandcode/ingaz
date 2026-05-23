@@ -1,6 +1,7 @@
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore';
 import { useAppStore } from '../store/appStore';
+import { useMemberStore } from '../store/memberStore';
 
 const socket = io(import.meta.env.PROD ? '/' : 'http://localhost:3001', {
   transports: ['polling', 'websocket'],
@@ -30,6 +31,14 @@ socket.on('subtask:updated', (data: { id: number; status: string }) => {
 
 socket.on('list:update', (data: { type: string; action: string; data: Record<string, unknown> }) => {
   useAppStore.getState().pushListUpdate(data);
+});
+
+socket.on('user:online', (userId: number) => {
+  useMemberStore.getState().setOnline(userId, true);
+});
+
+socket.on('user:offline', (userId: number) => {
+  useMemberStore.getState().setOnline(userId, false);
 });
 
 let prevUserId: number | null = null;

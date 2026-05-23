@@ -1,6 +1,6 @@
 # Member System — حالة التنفيذ
 
-> آخر تحديث: 23-05-2026 21:21
+> آخر تحديث: 23-05-2026 21:25
 
 ---
 
@@ -8,8 +8,8 @@
 
 ```json
 {
-  "phase": 2,
-  "name": "Member Store",
+  "phase": 3,
+  "name": "MemberCard + MemberList",
   "status": "not_started",
   "current_step": 0,
   "total_steps": 4,
@@ -27,8 +27,8 @@
 | # | المرحلة | الحالة |
 |---|---------|--------|
 | 1 | **Member API** | ✅ تم |
-| 2 | Member Store | 🔴 لم تبدأ |
-| 3 | MemberCard + MemberList | ⚪ |
+| 2 | **Member Store** | ✅ تم |
+| 3 | MemberCard + MemberList | 🔴 لم تبدأ |
 | 4 | Online Status via Socket | ⚪ |
 | 5 | Action Icons + Assign/Warn | ⚪ |
 | 6 | MemberDetailModal | ⚪ |

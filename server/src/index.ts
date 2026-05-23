@@ -176,12 +176,18 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id, 'User:', socket.data.user?.id);
+  const uid = socket.data.user?.id;
+  if (uid) socket.broadcast.emit('user:online', uid);
+
   socket.on('join:user', (userId) => {
     if (socket.data.user?.id === userId) {
       socket.join(`user:${userId}`);
     }
   });
-  socket.on('disconnect', () => console.log('Client disconnected:', socket.id));
+  socket.on('disconnect', () => {
+    console.log('Client disconnected:', socket.id);
+    if (uid) socket.broadcast.emit('user:offline', uid);
+  });
 });
 
 const PORT = process.env.PORT || 3001;
