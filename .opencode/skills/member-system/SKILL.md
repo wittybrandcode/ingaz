@@ -25,13 +25,36 @@
 10. كرر من الخطوة 1 في الجلسة الجديدة
 ```
 
-## القواعد
+## Ralph Loop Integration
 
-1. لا تتخطى `phase-verify` بعد كل مرحلة
-2. STATUS.md هو المصدر الوحيد لحقيقة التقدم - حدثه مباشرة بعد commit
-3. إذا فشلت خطوة، سجل الخطأ في STATUS.md (`last_error` + `resume_count`) وعدّل الخطة
-4. لا تبدأ مرحلة جديدة قبل أن تكتمل السابقة
-5. كل مرحلة يجب أن تعمل `typecheck` قبل وبعد
+هذه المهارة متوافقة مع نمط **Ralph Loop** (`scripts/ralph/prompt.md`).
+
+### حلقة التنفيذ
+```
+1. اقرأ scripts/ralph/log.md + plans/member-system/STATUS.md
+2. حدد المرحلة الحالية
+3. phase-verify (قبل)
+4. نفذ المرحلة
+5. phase-verify (بعد) + test
+6. أضف إدخالاً في scripts/ralph/log.md
+7. phase-document (docs/phase-N-*.md)
+8. git-commit
+9. حدث STATUS.md ← المرحلة التالية
+10. إذا السياق ممتلئ → session-handoff → `[HANDOFF]`
+11. كرر من الخطوة 1
+```
+
+### كشف الإكمال
+عندما `STATUS.md.phase > 6`:
+```
+<promise>FINISHED</promise>
+```
+
+### كشف امتلاء السياق
+- إذا لاحظت تقصير الردود أو صعوبة في التذكر:
+  1. `load skill session-handoff`
+  2. اكتب `docs/handoff-session-N.md`
+  3. أخرج `[HANDOFF] افتح جلسة جديدة واستمر من phase X`
 
 ## أوامر مفيدة
 
