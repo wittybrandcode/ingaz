@@ -4,6 +4,18 @@
 
 ---
 
+## Phase 5 — 23-05-2026 ✅
+
+**المرحلة:** 5 — Action Icons + Assign/Warn  
+**الحالة:** ✅ مكتملة  
+**الملفات:**
+- `client/src/components/MemberList.tsx` — تعديل (أيقونات تكليف + إنذار عند اختيار عضو)
+- `client/src/components/AssignModal.tsx` — جديد (فورم تكليف بمشروع → مهمة → تعيين)
+- `client/src/components/WarnModal.tsx` — جديد (فورم إنذار مع سبب ومهلة)
+**التحقق:** typecheck server ✅ | typecheck client ✅ | test 95/95 ✅
+
+---
+
 ## Phase 4 — 23-05-2026 ✅
 
 **المرحلة:** 4 — Online Status via Socket  

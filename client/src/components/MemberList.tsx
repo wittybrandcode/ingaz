@@ -1,6 +1,9 @@
-import { useEffect } from 'react'
-import { useMemberStore } from '../store/memberStore'
+import { useState, useEffect } from 'react'
+import { useAuthStore } from '../store/authStore'
+import { useMemberStore, type MemberProfile } from '../store/memberStore'
 import MemberProfileCard from './MemberProfileCard'
+import AssignModal from './AssignModal'
+import WarnModal from './WarnModal'
 import { Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 
 export default function MemberList() {
@@ -8,8 +11,15 @@ export default function MemberList() {
   const loading = useMemberStore(s => s.loading)
   const error = useMemberStore(s => s.error)
   const loadMembers = useMemberStore(s => s.loadMembers)
+  const selectedMemberId = useMemberStore(s => s.selectedMemberId)
+  const selectMember = useMemberStore(s => s.selectMember)
+  const user = useAuthStore(s => s.user)
+  const [assignTarget, setAssignTarget] = useState<MemberProfile | null>(null)
+  const [warnTarget, setWarnTarget] = useState<MemberProfile | null>(null)
 
   useEffect(() => { loadMembers() }, [])
+
+  const selectedMember = members.find(m => m.id === selectedMemberId)
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -36,12 +46,40 @@ export default function MemberList() {
       ) : members.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-6">لا يوجد أعضاء</p>
       ) : (
-        <div className="space-y-2 max-h-[480px] overflow-y-auto overscroll-contain">
+        <div className="space-y-2 max-h-[360px] overflow-y-auto overscroll-contain">
           {members.map(m => (
             <MemberProfileCard key={m.id} member={m} />
           ))}
         </div>
       )}
+
+      {selectedMember && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-center gap-2">
+            {selectedMember.can_assign && user?.is_manager && (
+              <button
+                onClick={() => { selectMember(null); setAssignTarget(selectedMember) }}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors text-xs"
+              >
+                <span className="text-lg leading-none">➕</span>
+                تكليف
+              </button>
+            )}
+            {user?.is_manager && (
+              <button
+                onClick={() => { selectMember(null); setWarnTarget(selectedMember) }}
+                className="flex-1 flex flex-col items-center gap-0.5 py-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-colors text-xs"
+              >
+                <span className="text-lg leading-none">⚠️</span>
+                إنذار
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {assignTarget && <AssignModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
+      {warnTarget && <WarnModal member={warnTarget} onClose={() => setWarnTarget(null)} />}
     </div>
   )
 }
