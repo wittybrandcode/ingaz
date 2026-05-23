@@ -6,7 +6,10 @@ import socket from '../lib/socket'
 import ProjectCard from './ProjectCard'
 import TaskCard from './TaskCard'
 import SubtaskCard from './SubtaskCard'
-import MemberCard from './MemberCard'
+import MemberProfileCard from './MemberProfileCard'
+import AssignModal from './AssignModal'
+import WarnModal from './WarnModal'
+import MemberDetailModal from './MemberDetailModal'
 import ViewModal from './ViewModal'
 import ProjectSettingsModal from './ProjectSettingsModal'
 import TaskSettingsModal from './TaskSettingsModal'
@@ -66,6 +69,12 @@ export default function KanbanBoard() {
   const [projectSettings, setProjectSettings] = useState<Project | null>(null)
   const [taskSettings, setTaskSettings] = useState<Task | null>(null)
   const [subtaskSettings, setSubtaskSettings] = useState<Subtask | null>(null)
+
+  // Member action state
+  const [selectedKanbanMember, setSelectedKanbanMember] = useState<number | null>(null)
+  const [assignTarget, setAssignTarget] = useState<User | null>(null)
+  const [warnTarget, setWarnTarget] = useState<User | null>(null)
+  const [detailTarget, setDetailTarget] = useState<User | null>(null)
 
   // NotifBar state
   const [notifIndex, setNotifIndex] = useState(0)
@@ -451,8 +460,28 @@ export default function KanbanBoard() {
             {filteredUsers.length === 0 ? (
               <div className="text-center py-8 text-gray-400 text-xs">لا يوجد أعضاء</div>
             ) : (
-              filteredUsers.map((u, i) => (
-                <MemberCard key={u.id} member={u} onSelect={handleSelect} index={i} />
+              filteredUsers.map((u) => (
+                <div key={u.id} className="space-y-1">
+                  <div onClick={() => setSelectedKanbanMember(selectedKanbanMember === u.id ? null : u.id)}>
+                    <MemberProfileCard member={u as any} />
+                  </div>
+                  {selectedKanbanMember === u.id && (
+                    <div className="flex gap-1 px-2 pb-1">
+                      <button onClick={() => { setSelectedKanbanMember(null); setDetailTarget(u) }}
+                        className="flex-1 py-1 rounded text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">
+                        تفاصيل
+                      </button>
+                      <button onClick={() => { setSelectedKanbanMember(null); setAssignTarget(u) }}
+                        className="flex-1 py-1 rounded text-xs bg-indigo-100 text-indigo-600 hover:bg-indigo-200 transition-colors">
+                        تكليف
+                      </button>
+                      <button onClick={() => { setSelectedKanbanMember(null); setWarnTarget(u) }}
+                        className="flex-1 py-1 rounded text-xs bg-amber-100 text-amber-600 hover:bg-amber-200 transition-colors">
+                        إنذار
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))
             )}
             {users.length < userTotal && (
@@ -482,6 +511,10 @@ export default function KanbanBoard() {
         <SubtaskSettingsModal subtask={subtaskSettings} onClose={() => setSubtaskSettings(null)}
           onUpdate={handleUpdateSubtask} onDelete={handleDeleteSubtask} />
       )}
+
+      {assignTarget && <AssignModal member={assignTarget as any} onClose={() => setAssignTarget(null)} />}
+      {warnTarget && <WarnModal member={warnTarget as any} onClose={() => setWarnTarget(null)} />}
+      {detailTarget && <MemberDetailModal member={detailTarget as any} onClose={() => setDetailTarget(null)} />}
     </div>
   )
 }
