@@ -2,7 +2,7 @@ import sanitizeHtml from 'sanitize-html'
 import path from 'path'
 import fs from 'fs'
 import { eq, and, count, sql, inArray } from 'drizzle-orm'
-import { ROLES, PAGINATION } from '../constants.js'
+import { PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, addActivityLog, getDb } from '../db/index.js'
@@ -145,29 +145,40 @@ export class ProjectService extends BaseService {
       ? sanitizeHtml(data.description, { allowedTags: sanitizeHtml.defaults.allowedTags.concat(['img', 'h2', 'h3']), allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, img: ['src', 'alt'] } })
       : null
 
-    const [project] = await this.db.insert(schema.projects).values({
-      title: cleanTitle,
-      description: cleanDesc,
-      createdBy: ctx.userId,
-    }).returning()
+    let project: any
+    await this.db.transaction(async (tx: any) => {
+      const [p] = await tx.insert(schema.projects).values({
+        title: cleanTitle,
+        description: cleanDesc,
+        createdBy: ctx.userId,
+      }).returning()
+      project = p
 
-    await addActivityLog(ctx.userId, 'create_project', `أنشأ مشروع "${cleanTitle}"`)
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'create_project',
+        details: `أنشأ مشروع "${cleanTitle}"`,
+      })
 
-    if (ctx.io) {
-      const adminsAndDeputies = await this.db
+      const admins = await tx
         .select({ id: schema.users.id })
         .from(schema.users)
-        .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
-      notifService.createMany(
-        adminsAndDeputies.map((u: any) => ({
-          userId: u.id,
-          type: 'project_created',
-          title: `تم إنشاء مشروع جديد: ${cleanTitle}`,
-          relatedType: 'project',
-          relatedId: project.id,
-        })),
-        ctx.io,
-      )
+        .where(eq(schema.users.isManager, 1))
+
+      if (admins.length > 0) {
+        await tx.insert(schema.notifications).values(
+          admins.map((u: any) => ({
+            userId: u.id,
+            type: 'project_created',
+            title: `تم إنشاء مشروع جديد: ${cleanTitle}`,
+            relatedType: 'project',
+            relatedId: project.id,
+          }))
+        )
+      }
+    })
+
+    if (ctx.io) {
       ctx.io.emit('list:update', { type: 'project', action: 'created', data: { ...camelToSnake(project), tasks_count: 0, created_by_name: ctx.userName, created_by_avatar: ctx.userAvatar } })
     }
 
@@ -192,63 +203,87 @@ export class ProjectService extends BaseService {
 
     if (Object.keys(updates).length === 0) throw new AppError(400, 'لا توجد حقول للتحديث')
 
-    await this.db.update(schema.projects).set(updates).where(eq(schema.projects.id, id))
+    let project: any
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.projects).set(updates).where(eq(schema.projects.id, id))
 
-    const [project] = await this.db.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1)
+      const [p] = await tx.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1)
+      project = p
 
-    const changes: string[] = []
-    if (data.title && data.title !== old?.title) changes.push(`تغيير الاسم إلى "${data.title}"`)
-    if (data.description !== undefined && data.description !== old?.description) changes.push('تحديث الوصف')
+      const changes: string[] = []
+      if (data.title && data.title !== old?.title) changes.push(`تغيير الاسم إلى "${data.title}"`)
+      if (data.description !== undefined && data.description !== old?.description) changes.push('تحديث الوصف')
 
-    if (ctx.io) {
-      ctx.io.emit('list:update', { type: 'project', action: 'updated', data: { id: Number(id), title: data.title, description: data.description !== undefined ? data.description : old?.description } })
-    }
+      if (changes.length > 0) {
+        await tx.insert(schema.activityLogs).values({
+          userId: ctx.userId,
+          action: 'update_project',
+          details: `حدّث مشروع "${old?.title}": ${changes.join('، ')}`,
+        })
 
-    if (changes.length > 0) {
-      await addActivityLog(ctx.userId, 'update_project', `حدّث مشروع "${old?.title}": ${changes.join('، ')}`)
-      if (ctx.io) {
-        const members = await this.db
+        const members = await tx
           .select({ userId: schema.projectMembers.userId })
           .from(schema.projectMembers)
           .where(eq(schema.projectMembers.projectId, id))
-        notifService.createMany(
-          members.map((m: any) => ({
-            userId: m.userId,
-            type: 'project_updated',
-            title: `تم تحديث المشروع: ${project?.title}`,
-            message: `${ctx.userName} حدّث مشروع "${old?.title}": ${changes.join('، ')}`,
-            relatedType: 'project',
-            relatedId: project.id,
-          })),
-          ctx.io,
-        )
+
+        if (members.length > 0) {
+          await tx.insert(schema.notifications).values(
+            members.map((m: any) => ({
+              userId: m.userId,
+              type: 'project_updated',
+              title: `تم تحديث المشروع: ${project?.title}`,
+              message: `${ctx.userName} حدّث مشروع "${old?.title}": ${changes.join('، ')}`,
+              relatedType: 'project',
+              relatedId: project.id,
+            }))
+          )
+        }
       }
+    })
+
+    if (ctx.io) {
+      ctx.io.emit('list:update', { type: 'project', action: 'updated', data: { id: Number(id), title: data.title, description: data.description !== undefined ? data.description : old?.description } })
     }
 
     return project
   }
 
   async archive(id: number, ctx: ServiceContext) {
-    const [project] = await this.db.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1)
-    await this.db.update(schema.projects).set({ status: 'archived' }).where(eq(schema.projects.id, id))
-    await addActivityLog(ctx.userId, 'archive_project', `أرشف مشروع "${project?.title}"`)
-    if (ctx.io) {
-      ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
-      const members = await this.db
+    let project: any
+    await this.db.transaction(async (tx: any) => {
+      const [p] = await tx.select().from(schema.projects).where(eq(schema.projects.id, id)).limit(1)
+      project = p
+
+      await tx.update(schema.projects).set({ status: 'archived' }).where(eq(schema.projects.id, id))
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'archive_project',
+        details: `أرشف مشروع "${project?.title}"`,
+      })
+
+      const members = await tx
         .select({ userId: schema.projectMembers.userId })
         .from(schema.projectMembers)
         .where(eq(schema.projectMembers.projectId, id))
-      notifService.createMany(
-        members.map((m: any) => ({
-          userId: m.userId,
-          type: 'project_archived',
-          title: `تم أرشفة المشروع: ${project?.title}`,
-          relatedType: 'project',
-          relatedId: Number(id),
-        })),
-        ctx.io,
-      )
+
+      if (members.length > 0) {
+        await tx.insert(schema.notifications).values(
+          members.map((m: any) => ({
+            userId: m.userId,
+            type: 'project_archived',
+            title: `تم أرشفة المشروع: ${project?.title}`,
+            relatedType: 'project',
+            relatedId: Number(id),
+          }))
+        )
+      }
+    })
+
+    if (ctx.io) {
+      ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
     }
+
     return { message: 'تم أرشفة المشروع' }
   }
 
@@ -285,23 +320,6 @@ export class ProjectService extends BaseService {
       }
     }
 
-    if (ctx.io) {
-      const members = await this.db
-        .select({ userId: schema.projectMembers.userId })
-        .from(schema.projectMembers)
-        .where(eq(schema.projectMembers.projectId, id))
-      notifService.createMany(
-        members.map((m: any) => ({
-          userId: m.userId,
-          type: 'project_deleted',
-          title: `تم حذف المشروع: ${project?.title}`,
-          relatedType: 'project',
-          relatedId: Number(id),
-        })),
-        ctx.io,
-      )
-    }
-
     await this.db.transaction(async (tx: any) => {
       for (const tid of [Number(id), ...taskIds, ...subtaskIds]) {
         await tx
@@ -321,7 +339,26 @@ export class ProjectService extends BaseService {
         action: 'delete_project',
         details: `حذف مشروع "${project?.title}" نهائياً`,
       })
+
+      if (ctx.io) {
+        const members = await tx
+          .select({ userId: schema.projectMembers.userId })
+          .from(schema.projectMembers)
+          .where(eq(schema.projectMembers.projectId, id))
+        if (members.length > 0) {
+          await tx.insert(schema.notifications).values(
+            members.map((m: any) => ({
+              userId: m.userId,
+              type: 'project_deleted',
+              title: `تم حذف المشروع: ${project?.title}`,
+              relatedType: 'project',
+              relatedId: Number(id),
+            }))
+          )
+        }
+      }
     })
+
     if (ctx.io) {
       ctx.io.emit('list:update', { type: 'project', action: 'deleted', data: { id: Number(id) } })
     }
@@ -353,46 +390,50 @@ export class ProjectService extends BaseService {
 
   async addMember(projectId: number, userId: number, ctx?: ServiceContext) {
     try {
-      const [member] = await this.db.insert(schema.projectMembers).values({
-        projectId,
-        userId,
-        role: 'manager',
-      }).returning()
-
-      const [enriched] = await this.db
-        .select({
-          id: schema.projectMembers.id,
-          projectId: schema.projectMembers.projectId,
-          userId: schema.projectMembers.userId,
-          role: schema.projectMembers.role,
-          createdAt: schema.projectMembers.createdAt,
-          name: schema.users.name,
-          email: schema.users.email,
-          avatar: schema.users.avatar,
-          roleId: schema.users.roleId,
-          roleName: schema.roles.name,
-        })
-        .from(schema.projectMembers)
-        .innerJoin(schema.users, eq(schema.projectMembers.userId, schema.users.id))
-        .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
-        .where(eq(schema.projectMembers.id, member.id))
-        .limit(1)
-
-      if (ctx?.io) {
-        const [project] = await this.db
-          .select({ title: schema.projects.title })
-          .from(schema.projects)
-          .where(eq(schema.projects.id, projectId))
-          .limit(1)
-        notifService.create({
+      let enriched: any
+      await this.db.transaction(async (tx: any) => {
+        const [member] = await tx.insert(schema.projectMembers).values({
+          projectId,
           userId,
-          type: 'project_assigned',
-          title: 'تمت إضافتك كمشرف على مشروع',
-          message: `تمت إضافتك كمشرف على مشروع "${project?.title}"`,
-          relatedType: 'project',
-          relatedId: projectId,
-        }, ctx.io)
-      }
+          role: 'manager',
+        }).returning()
+
+        const [e] = await tx
+          .select({
+            id: schema.projectMembers.id,
+            projectId: schema.projectMembers.projectId,
+            userId: schema.projectMembers.userId,
+            role: schema.projectMembers.role,
+            createdAt: schema.projectMembers.createdAt,
+            name: schema.users.name,
+            email: schema.users.email,
+            avatar: schema.users.avatar,
+            roleId: schema.users.roleId,
+            roleName: schema.roles.name,
+          })
+          .from(schema.projectMembers)
+          .innerJoin(schema.users, eq(schema.projectMembers.userId, schema.users.id))
+          .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+          .where(eq(schema.projectMembers.id, member.id))
+          .limit(1)
+        enriched = e
+
+        if (ctx?.io) {
+          const [project] = await tx
+            .select({ title: schema.projects.title })
+            .from(schema.projects)
+            .where(eq(schema.projects.id, projectId))
+            .limit(1)
+          await tx.insert(schema.notifications).values({
+            userId,
+            type: 'project_assigned',
+            title: 'تمت إضافتك كمشرف على مشروع',
+            message: `تمت إضافتك كمشرف على مشروع "${project?.title}"`,
+            relatedType: 'project',
+            relatedId: projectId,
+          })
+        }
+      })
 
       return camelToSnake(enriched)
     } catch (e: any) {

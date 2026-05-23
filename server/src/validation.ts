@@ -15,7 +15,7 @@ export function validate(schema: any) {
   return (req: any, res: any, next: any) => {
     const result = schema.safeParse(req.body);
     if (!result.success) {
-      const first = result.error.errors[0];
+      const first = result.error.issues[0];
       return res.fail(400, first.message);
     }
     req.body = result.data;
@@ -29,18 +29,17 @@ export const loginSchema = z.object({
 });
 
 export const createUserSchema = z.object({
-  name: z.string({ message: 'الاسم مطلوب' }).min(1, 'الاسم مطلوب').max(MAX_NAME),
+  name: z.string({ message: 'الاسم مطلوب' }).min(1, 'الاسم لا يمكن أن يكون فارغاً').max(MAX_NAME),
   email: z.string({ message: 'البريد الإلكتروني مطلوب' }).email('بريد إلكتروني غير صالح').max(MAX_EMAIL),
   password: z.string({ message: 'كلمة المرور مطلوبة' }).min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل').max(MAX_PASSWORD),
-  role_id: z.number({ message: 'الدور مطلوب' }).int().positive(),
-  status: z.string().max(MAX_STATUS).optional(),
+  roleId: z.number({ message: 'الدور مطلوب' }).int().positive(),
 });
 
 export const updateUserSchema = z.object({
   name: z.string().min(1, 'الاسم لا يمكن أن يكون فارغاً').max(MAX_NAME).optional(),
   email: z.string().email('بريد إلكتروني غير صالح').max(MAX_EMAIL).optional(),
   password: z.string().min(6, 'كلمة المرور يجب أن تكون 6 أحرف على الأقل').max(MAX_PASSWORD).optional(),
-  role_id: z.number({ message: 'الدور مطلوب' }).int().positive().optional(),
+  roleId: z.number({ message: 'الدور مطلوب' }).int().positive().optional(),
   status: z.string().max(MAX_STATUS).optional(),
 });
 

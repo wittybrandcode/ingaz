@@ -5,7 +5,7 @@ import * as testSchema from './test-schema.js'
 import { WarningService } from '../services/WarningService.js'
 import type { ServiceContext } from '../services/BaseService.js'
 
-const adminCtx: ServiceContext = { userId: 1, roleId: 1 }
+const adminCtx: ServiceContext = { userId: 1, roleId: 1, isManager: 1 }
 
 const mockGetCreditLevel = vi.hoisted(() => vi.fn())
 const mockClearFrozenCache = vi.hoisted(() => vi.fn())
@@ -138,8 +138,8 @@ describe('WarningService', () => {
 
     it('listCreditScores returns paginated users with levels', async () => {
       const db = await createTestDb()
-      seedUser(db, { id: 1, name: 'User A', credit_score: 8, role_id: 3 })
-      seedUser(db, { id: 2, name: 'User B', credit_score: 3, role_id: 3 })
+      seedUser(db, { id: 1, name: 'User A', credit_score: 8, role_id: 2 })
+      seedUser(db, { id: 2, name: 'User B', credit_score: 3, role_id: 2 })
       const service = new WarningService(db)
 
       const result = await service.listCreditScores(1, 10)
@@ -172,7 +172,7 @@ describe('WarningService', () => {
       mockGetCreditLevel.mockReturnValue({ name: 'excellent', can_login: 1 })
       seedUser(db, { id: 1, role_id: 1 })
       seedUser(db, { id: 10, credit_score: 10 })
-      const empCtx: ServiceContext = { userId: 10, roleId: 3 }
+      const empCtx: ServiceContext = { userId: 10, roleId: 3, isManager: 0 }
 
       const service = new WarningService(db)
       const warning = await service.create({ user_id: 10, reason: 'Tardy' }, adminCtx)
@@ -187,7 +187,7 @@ describe('WarningService', () => {
       mockGetCreditLevel.mockReturnValue({ name: 'excellent', can_login: 1 })
       seedUser(db, { id: 1, role_id: 1 })
       seedUser(db, { id: 10, credit_score: 10 })
-      const empCtx: ServiceContext = { userId: 10, roleId: 3 }
+      const empCtx: ServiceContext = { userId: 10, roleId: 3, isManager: 0 }
 
       const service = new WarningService(db)
       const warning = await service.create({ user_id: 10, reason: 'Missed deadline' }, adminCtx)
@@ -198,7 +198,7 @@ describe('WarningService', () => {
 
     it('respond to non-existent warning throws 404', async () => {
       const db = await createTestDb()
-      const empCtx: ServiceContext = { userId: 10, roleId: 3 }
+      const empCtx: ServiceContext = { userId: 10, roleId: 3, isManager: 0 }
       const service = new WarningService(db)
 
       await expect(service.respond(999, 'Hello?', empCtx)).rejects.toThrow('الإنذار غير موجود')
@@ -209,7 +209,7 @@ describe('WarningService', () => {
       mockGetCreditLevel.mockReturnValue({ name: 'excellent', can_login: 1 })
       seedUser(db, { id: 1, role_id: 1 })
       seedUser(db, { id: 10, credit_score: 7 })
-      const empCtx: ServiceContext = { userId: 10, roleId: 3 }
+      const empCtx: ServiceContext = { userId: 10, roleId: 3, isManager: 0 }
 
       const service = new WarningService(db)
       const warning = await service.create({ user_id: 10, reason: 'Absent', deadline_hours: 48 }, adminCtx)
@@ -231,7 +231,7 @@ describe('WarningService', () => {
         .mockReturnValueOnce({ name: 'frozen', can_login: 0 })
       seedUser(db, { id: 1, role_id: 1 })
       seedUser(db, { id: 10, credit_score: 3 })
-      const empCtx: ServiceContext = { userId: 10, roleId: 3 }
+      const empCtx: ServiceContext = { userId: 10, roleId: 3, isManager: 0 }
 
       const service = new WarningService(db)
       const warning = await service.create({ user_id: 10, reason: 'Repeated absences', warning_type_id: null, deadline_hours: 48 }, adminCtx)

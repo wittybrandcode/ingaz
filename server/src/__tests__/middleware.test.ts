@@ -85,7 +85,7 @@ describe('authenticate', () => {
   })
 
   it('calls next() with valid token', async () => {
-    const token = generateToken({ id: 1, email: 'test@test.com', name: 'Test', avatar: null, role_id: ROLES.ADMIN })
+    const token = generateToken({ id: 1, email: 'test@test.com', name: 'Test', avatar: null, role_id: ROLES.ADMIN, is_manager: 0 })
     const req = mockReq({ headers: { authorization: `Bearer ${token}` } })
     const res = mockRes()
     const next = mockNext()
@@ -98,7 +98,7 @@ describe('authenticate', () => {
   })
 
   it('returns 401 when token is blacklisted', async () => {
-    const token = generateToken({ id: 1, email: 'test@test.com', name: 'Test', avatar: null, role_id: ROLES.ADMIN })
+    const token = generateToken({ id: 1, email: 'test@test.com', name: 'Test', avatar: null, role_id: ROLES.ADMIN, is_manager: 0 })
     blacklistToken(token)
 
     const req = mockReq({ headers: { authorization: `Bearer ${token}` } })
@@ -114,11 +114,11 @@ describe('authenticate', () => {
 
 describe('authorize', () => {
   it('returns 403 when role not in allowed list', async () => {
-    const req = mockReq({ user: { id: 1, role_id: ROLES.EMPLOYEE } })
+    const req = mockReq({ user: { id: 1, role_id: 3, is_manager: 0 } })
     const res = mockRes()
     const next = mockNext()
 
-    const middleware = authorize(ROLES.ADMIN, ROLES.DEPUTY)
+    const middleware = authorize(ROLES.ADMIN)
     await middleware(req, res, next)
 
     expect(res.fail).toHaveBeenCalledWith(403, 'صلاحيات غير كافية')
@@ -126,11 +126,11 @@ describe('authorize', () => {
   })
 
   it('calls next() when role is allowed', async () => {
-    const req = mockReq({ user: { id: 1, role_id: ROLES.ADMIN } })
+    const req = mockReq({ user: { id: 1, role_id: ROLES.ADMIN, is_manager: 0 } })
     const res = mockRes()
     const next = mockNext()
 
-    const middleware = authorize(ROLES.ADMIN, ROLES.DEPUTY)
+    const middleware = authorize(ROLES.ADMIN)
     await middleware(req, res, next)
 
     expect(next).toHaveBeenCalled()
@@ -205,7 +205,7 @@ describe('requireCredit', () => {
 
 describe('isBlacklisted', () => {
   it('returns false for non-blacklisted tokens', async () => {
-    const token = generateToken({ id: 1, email: 'a@b.com', name: 'A', avatar: null, role_id: ROLES.EMPLOYEE })
+    const token = generateToken({ id: 1, email: 'a@b.com', name: 'A', avatar: null, role_id: 2, is_manager: 0 })
 
     const result = await isBlacklisted(token)
 
@@ -213,7 +213,7 @@ describe('isBlacklisted', () => {
   })
 
   it('returns true for blacklisted tokens', async () => {
-    const token = generateToken({ id: 1, email: 'a@b.com', name: 'A', avatar: null, role_id: ROLES.EMPLOYEE })
+    const token = generateToken({ id: 1, email: 'a@b.com', name: 'A', avatar: null, role_id: 2, is_manager: 0 })
     blacklistToken(token)
 
     const result = await isBlacklisted(token)

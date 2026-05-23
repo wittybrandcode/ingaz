@@ -12,7 +12,7 @@ export function seedUser(db: any, overrides: Record<string, any> = {}) {
     name: overrides.name ?? 'Test User',
     email: overrides.email ?? `test${Date.now()}_${Math.random().toString(36).slice(2, 6)}@example.com`,
     password: bcrypt.hashSync(overrides.password ?? 'password123', 10),
-    roleId: overrides.role_id ?? ROLES.EMPLOYEE,
+    roleId: overrides.role_id ?? 2,
     status: overrides.status ?? 'active',
     creditScore: overrides.credit_score ?? 10,
     frozenAt: overrides.frozen_at ?? null,
@@ -85,9 +85,9 @@ export function seedProjectMember(db: any, projectId: number, userId: number) {
   db.insert(testSchema.projectMembers).values({ projectId, userId, role: 'manager' }).run()
 }
 
-export function generateToken(user: { id: number; email: string; name: string; role_id: number; avatar?: string | null }): string {
+export function generateToken(user: { id: number; email: string; name: string; role_id: number; avatar?: string | null; is_manager?: number }): string {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name, avatar: user.avatar || null, role_id: user.role_id },
+    { id: user.id, email: user.email, name: user.name, avatar: user.avatar || null, role_id: user.role_id, is_manager: user.is_manager ?? 0 },
     process.env.JWT_SECRET!,
     { expiresIn: '7d' }
   )
@@ -95,7 +95,7 @@ export function generateToken(user: { id: number; email: string; name: string; r
 
 const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL);
-  CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL, avatar TEXT, status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'archived')), credit_score INTEGER DEFAULT 10, frozen_at DATETIME, freeze_reason TEXT, unfrozen_at DATETIME, last_credit_recovery DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
+  CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL, is_manager INTEGER DEFAULT 0, avatar TEXT, status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'archived')), credit_score INTEGER DEFAULT 10, frozen_at DATETIME, freeze_reason TEXT, unfrozen_at DATETIME, last_credit_recovery DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, created_by INTEGER REFERENCES users(id), status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'archived')), created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, created_by INTEGER REFERENCES users(id), status TEXT DEFAULT 'active' CHECK(status IN ('active', 'open', 'in_progress', 'completed')), created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS subtasks (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, assigned_to INTEGER REFERENCES users(id), status TEXT DEFAULT 'open' CHECK(status IN ('open', 'completed', 'cancelled', 'deferred')), deadline DATETIME, winner_comment_id INTEGER, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
@@ -163,8 +163,7 @@ export function createTestDb() {
   }
 
   db.insert(testSchema.roles).values({ id: ROLES.ADMIN, name: 'admin' }).run()
-  db.insert(testSchema.roles).values({ id: ROLES.DEPUTY, name: 'deputy' }).run()
-  db.insert(testSchema.roles).values({ id: ROLES.EMPLOYEE, name: 'employee' }).run()
+  db.insert(testSchema.roles).values({ id: 2, name: 'participant' }).run()
 
   db.insert(testSchema.restrictionLevels).values([
     { name: 'excellent', nameAr: 'ممتاز', minScore: 8, color: '#22c55e', icon: 'CheckCircle2', showBanner: 0, canLogin: 1, canCreateProjects: 1, canCreateTasks: 1, canEdit: 1, canAssign: 1, canSubmit: 1, canComment: 1, sortOrder: 1 },

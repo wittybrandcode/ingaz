@@ -8,7 +8,6 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import AssigneePicker from './AssigneePicker'
 import TiptapEditor from './TiptapEditor'
 import { sanitizeHTML } from '../lib/sanitize'
-import { ROLES } from '../constants'
 import type { Attachment, Assignee } from '../types'
 
 interface SubtaskSettingsModalProps {
@@ -59,7 +58,7 @@ export default function SubtaskSettingsModal({ subtask, onClose, onUpdate, onDel
       .catch(() => {})
   }, [subtask.id])
 
-  const isManager = user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY
+  const isManager = user?.is_manager
 
   const handleSave = async () => {
     setSaving(true)
@@ -183,7 +182,7 @@ export default function SubtaskSettingsModal({ subtask, onClose, onUpdate, onDel
             <p className="text-xs text-gray-500 mb-2 font-medium">المكلفون</p>
             <AssigneePicker
               assignees={assignees.map(a => ({ user_id: a.user_id, name: a.name, avatar: a.avatar }))}
-              availableUsers={users.filter(u => u.role_id === ROLES.EMPLOYEE)}
+              availableUsers={users}
               onAdd={async (userId) => {
                 const { data } = await api.post<Assignee>(`/subtasks/${subtask.id}/assignees`, { user_id: userId })
                 setAssignees(prev => [...prev, data])
@@ -192,7 +191,7 @@ export default function SubtaskSettingsModal({ subtask, onClose, onUpdate, onDel
                 await api.delete(`/subtasks/${subtask.id}/assignees/${userId}`)
                 setAssignees(prev => prev.filter(a => a.user_id !== userId))
               }}
-              canAssign={isManager}
+              canAssign={isManager === 1}
             />
           </div>
 

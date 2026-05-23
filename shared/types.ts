@@ -8,6 +8,8 @@ export interface User {
   role_name: string
   avatar: string | null
   status: string
+  is_manager?: number
+  permissions?: string[]
   frozen_at?: string | null
   freeze_reason?: string | null
   credit_score?: number
@@ -205,8 +207,6 @@ export interface DashboardData {
 
 export const ROLES_VALUES = {
   ADMIN: 1,
-  DEPUTY: 2,
-  EMPLOYEE: 3,
 } as const
 
 export const ROLES = ROLES_VALUES

@@ -2,7 +2,6 @@ import { eq, and, sql, isNotNull, notInArray } from 'drizzle-orm'
 import { BaseService } from './BaseService.js'
 import { NotificationService } from './NotificationService.js'
 import { schema, getDb } from '../db/index.js'
-import { ROLES } from '../constants.js'
 
 const MS_6H = 6 * 3600000
 const MS_24H = 24 * 3600000
@@ -99,7 +98,7 @@ export class DeadlineService extends BaseService {
     return this.db
       .select({ id: schema.users.id })
       .from(schema.users)
-      .where(sql`${schema.users.roleId} IN (${ROLES.ADMIN}, ${ROLES.DEPUTY})`)
+      .where(eq(schema.users.isManager, 1))
   }
 
   private async tryInsert(subtaskId: number, reminderType: string): Promise<boolean> {

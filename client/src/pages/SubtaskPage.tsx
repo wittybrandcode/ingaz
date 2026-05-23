@@ -9,7 +9,6 @@ import FilePreview, { type FileItem } from '../components/FilePreview'
 import AudioPreview from '../components/AudioPreview'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/appStore'
-import { ROLES } from '../constants'
 import type { SubtaskData } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
 import { SUBTASK_STATUS_CONFIG as statusConfig } from '../statusConfig'
@@ -49,7 +48,7 @@ export default function SubtaskPage() {
     return unsub
   }, [id])
 
-  const canUpload = user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY
+  const canUpload = user?.is_manager
 
   const uploadFromBar = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files

@@ -48,8 +48,8 @@ async function main() {
   console.log('\n🏗️  بذر البيانات الأساسية...')
 
   await run('INSERT INTO roles (id, name) VALUES ($1, $2)', ROLES.ADMIN, 'admin')
-  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', ROLES.DEPUTY, 'deputy')
-  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', ROLES.EMPLOYEE, 'employee')
+  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', 2, 'deputy')
+  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', 2, 'employee')
 
   const insLevelSql =
     'INSERT INTO restriction_levels (name, name_ar, min_score, color, icon, show_banner, can_login, can_create_projects, can_create_tasks, can_edit, can_assign, can_submit, can_comment, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)'
@@ -110,11 +110,11 @@ async function main() {
   for (const p of allPerms) await run(rpSql, ROLES.ADMIN, p.id)
   const deputyExcluded = ['users.', 'roles.', 'projects.delete', 'projects.archive', 'subtasks.assign']
   for (const p of allPerms) {
-    if (!deputyExcluded.some(ex => p.key.startsWith(ex))) await run(rpSql, ROLES.DEPUTY, p.id)
+    if (!deputyExcluded.some(ex => p.key.startsWith(ex))) await run(rpSql, 2, p.id)
   }
   const employeeOnly = ['projects.view', 'tasks.view', 'subtasks.view', 'subtasks.create', 'subtasks.submit', 'comments.create']
   for (const p of allPerms) {
-    if (employeeOnly.some(k => p.key === k)) await run(rpSql, ROLES.EMPLOYEE, p.id)
+    if (employeeOnly.some(k => p.key === k)) await run(rpSql, 2, p.id)
   }
 
   const ntSql = 'INSERT INTO notification_types (type_key, type_group, name, description, default_enabled) VALUES ($1, $2, $3, $4, $5)'
@@ -171,30 +171,30 @@ async function main() {
 
   const users = [
     { name: 'المدير العام', email: 'admin@ingaz.com', role_id: ROLES.ADMIN, credit: 10 },
-    { name: 'نائب المدير', email: 'deputy@ingaz.com', role_id: ROLES.DEPUTY, credit: 10 },
-    { name: 'موظف نموذجي', email: 'emp@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
+    { name: 'نائب المدير', email: 'deputy@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'موظف نموذجي', email: 'emp@ingaz.com', role_id: 2, credit: 10 },
     { name: 'أحمد الشريف', email: 'ahmed@ingaz.com', role_id: ROLES.ADMIN, credit: 10 },
-    { name: 'سارة النمر', email: 'sara@ingaz.com', role_id: ROLES.DEPUTY, credit: 10 },
-    { name: 'محمد العبدالله', email: 'mohamed@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'نورة السعيد', email: 'noura@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'خالد المطيري', email: 'khalid@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 9 },
-    { name: 'منى الحربي', email: 'mona@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 8 },
-    { name: 'فيصل الدوسري', email: 'faisal@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 7 },
-    { name: 'هند القحطاني', email: 'hind@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 6 },
-    { name: 'سامي الزهراني', email: 'sami@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 5 },
-    { name: 'ليلى الغامدي', email: 'laila@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 5 },
-    { name: 'يوسف الأنصاري', email: 'yusuf@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'رنا الشمري', email: 'rana@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'ماجد العتيبي', email: 'majed@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 8 },
-    { name: 'دينا بكر', email: 'dana@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'تركي الزهراني', email: 'turki@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 7 },
-    { name: 'سلمى الشهراني', email: 'salma@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'بدر الحارثي', email: 'badr@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 9 },
-    { name: 'هدى الغامدي', email: 'huda@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'ناصر السبيعي', email: 'nasser@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'أماني الزهراني', email: 'amani@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'سعد القحطاني', email: 'saad@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
-    { name: 'ليان الشريف', email: 'layan@ingaz.com', role_id: ROLES.EMPLOYEE, credit: 10 },
+    { name: 'سارة النمر', email: 'sara@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'محمد العبدالله', email: 'mohamed@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'نورة السعيد', email: 'noura@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'خالد المطيري', email: 'khalid@ingaz.com', role_id: 2, credit: 9 },
+    { name: 'منى الحربي', email: 'mona@ingaz.com', role_id: 2, credit: 8 },
+    { name: 'فيصل الدوسري', email: 'faisal@ingaz.com', role_id: 2, credit: 7 },
+    { name: 'هند القحطاني', email: 'hind@ingaz.com', role_id: 2, credit: 6 },
+    { name: 'سامي الزهراني', email: 'sami@ingaz.com', role_id: 2, credit: 5 },
+    { name: 'ليلى الغامدي', email: 'laila@ingaz.com', role_id: 2, credit: 5 },
+    { name: 'يوسف الأنصاري', email: 'yusuf@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'رنا الشمري', email: 'rana@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'ماجد العتيبي', email: 'majed@ingaz.com', role_id: 2, credit: 8 },
+    { name: 'دينا بكر', email: 'dana@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'تركي الزهراني', email: 'turki@ingaz.com', role_id: 2, credit: 7 },
+    { name: 'سلمى الشهراني', email: 'salma@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'بدر الحارثي', email: 'badr@ingaz.com', role_id: 2, credit: 9 },
+    { name: 'هدى الغامدي', email: 'huda@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'ناصر السبيعي', email: 'nasser@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'أماني الزهراني', email: 'amani@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'سعد القحطاني', email: 'saad@ingaz.com', role_id: 2, credit: 10 },
+    { name: 'ليان الشريف', email: 'layan@ingaz.com', role_id: 2, credit: 10 },
   ]
 
   const userSql = 'INSERT INTO users (name, email, password, role_id, status, credit_score) VALUES ($1, $2, $3, $4, $5, $6)'

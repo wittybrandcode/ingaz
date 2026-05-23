@@ -144,9 +144,9 @@ async function main() {
   const users = await db.select({ id: schema.users.id, name: schema.users.name, roleId: schema.users.roleId })
     .from(schema.users).where(inArray(schema.users.email, ['admin@ingaz.com', 'emp@ingaz.com']))
   const admin = users.find((u: typeof users[0]) => u.roleId === ROLES.ADMIN) || { id: 1 }
-  const emp = users.find((u: typeof users[0]) => u.roleId === ROLES.EMPLOYEE) || { id: 3 }
+  const emp = users.find((u: typeof users[0]) => u.roleId === 2) || { id: 3 }
   const allEmployees = await db.select({ id: schema.users.id, name: schema.users.name })
-    .from(schema.users).where(eq(schema.users.roleId, ROLES.EMPLOYEE))
+    .from(schema.users).where(eq(schema.users.roleId, 2))
   console.log(`✅ ${allEmployees.length + 2} مستخدم`)
 
   // ── Projects ──

@@ -5,18 +5,17 @@ import {
   Settings, LogOut, UserCircle, Menu, X
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
-import { ROLES } from '../constants'
 import { useFocusTrap } from '../lib/useFocusTrap'
 import NotificationBell from './NotificationBell'
 import Avatar from './Avatar'
 
-const navItems: { path: string; label: string; icon: any; roles: number[] }[] = [
-  { path: '/projects', label: 'مساحة العمل', icon: FolderKanban, roles: [ROLES.ADMIN, ROLES.DEPUTY, ROLES.EMPLOYEE] },
-  { path: '/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard, roles: [ROLES.ADMIN, ROLES.DEPUTY, ROLES.EMPLOYEE] },
-  { path: '/warnings', label: 'الإنذارات', icon: AlertTriangle, roles: [ROLES.ADMIN] },
-  { path: '/users', label: 'المستخدمين', icon: Users, roles: [ROLES.ADMIN] },
-  { path: '/roles', label: 'الأدوار', icon: Shield, roles: [ROLES.ADMIN] },
-  { path: '/profile', label: 'الملف', icon: UserCircle, roles: [ROLES.ADMIN, ROLES.DEPUTY, ROLES.EMPLOYEE] },
+const navItems: { path: string; label: string; icon: any; adminOnly?: boolean }[] = [
+  { path: '/projects', label: 'مساحة العمل', icon: FolderKanban },
+  { path: '/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
+  { path: '/warnings', label: 'الإنذارات', icon: AlertTriangle, adminOnly: true },
+  { path: '/users', label: 'المستخدمين', icon: Users, adminOnly: true },
+  { path: '/roles', label: 'الأدوار', icon: Shield, adminOnly: true },
+  { path: '/profile', label: 'الملف', icon: UserCircle },
 ]
 
 export default function TopBar() {
@@ -60,7 +59,7 @@ export default function TopBar() {
           <span className="text-white font-extrabold text-lg hidden sm:inline">إنجـــاز</span>
         </button>
         <nav className="hidden md:flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {navItems.filter(i => i.roles.includes(user?.role_id || ROLES.EMPLOYEE)).map(item => {
+          {navItems.filter(i => !i.adminOnly || user?.is_manager).map(item => {
             const active = isActive(item.path)
             return (
               <button key={item.path} onClick={() => navigate(item.path)}
@@ -74,7 +73,7 @@ export default function TopBar() {
               </button>
             )
           })}
-          {user?.role_id === ROLES.ADMIN && (
+          {user?.is_manager && (
             <button onClick={() => navigate('/warnings/manage')}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-none cursor-pointer whitespace-nowrap transition-all shrink-0"
               style={{
@@ -120,7 +119,7 @@ export default function TopBar() {
               </button>
             </div>
             <div className="p-3 space-y-1">
-          {navItems.filter(i => i.roles.includes((user?.role_id || ROLES.EMPLOYEE) as number)).map(item => {
+          {navItems.filter(i => !i.adminOnly || user?.is_manager).map(item => {
                 const active = isActive(item.path)
                 return (
                   <button key={item.path} onClick={() => { navigate(item.path); setMenuOpen(false) }}
@@ -134,7 +133,7 @@ export default function TopBar() {
                   </button>
                 )
               })}
-              {user?.role_id === ROLES.ADMIN && (
+              {user?.is_manager && (
                 <button onClick={() => { navigate('/warnings/manage'); setMenuOpen(false) }}
                   className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-bold border-none cursor-pointer text-right transition-all"
                   style={{

@@ -23,6 +23,7 @@ export class AuthService extends BaseService {
         email: schema.users.email,
         password: schema.users.password,
         roleId: schema.users.roleId,
+        isManager: schema.users.isManager,
         avatar: schema.users.avatar,
         status: schema.users.status,
         frozenAt: schema.users.frozenAt,
@@ -30,7 +31,7 @@ export class AuthService extends BaseService {
         roleName: schema.roles.name,
       })
       .from(schema.users)
-      .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(
         and(
           eq(schema.users.email, email),
@@ -51,6 +52,7 @@ export class AuthService extends BaseService {
       name: user.name,
       avatar: user.avatar,
       role_id: user.roleId,
+      is_manager: user.isManager,
     })
     if (io) {
       const notifService = new NotificationService(this.db)
@@ -74,6 +76,7 @@ export class AuthService extends BaseService {
         name: schema.users.name,
         email: schema.users.email,
         roleId: schema.users.roleId,
+        isManager: schema.users.isManager,
         avatar: schema.users.avatar,
         status: schema.users.status,
         frozenAt: schema.users.frozenAt,
@@ -81,7 +84,7 @@ export class AuthService extends BaseService {
         roleName: schema.roles.name,
       })
       .from(schema.users)
-      .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(eq(schema.users.id, userId))
       .limit(1)
     if (!user) throw new AppError(404, 'المستخدم غير موجود')

@@ -1,7 +1,6 @@
 import 'dotenv/config'
 import bcrypt from 'bcryptjs';
 import { getPool } from './db/index.js';
-import { ROLES } from './constants.js';
 
 const pool = getPool();
 
@@ -18,6 +17,10 @@ async function all(q: string, ...params: any[]) {
 async function main() {
   console.log('🌱 Seeding comprehensive test data...\n');
 
+  // Fetch dynamic role IDs
+  const participantRole = await get("SELECT id FROM roles WHERE name = 'مشارك'");
+  const participantRoleId = participantRole?.id || 2;
+
   // ============================================================
   // 1. USERS (10 total)
   // ============================================================
@@ -25,25 +28,25 @@ async function main() {
   const hashedPasswords = await Promise.all(userPasswords.map(p => bcrypt.hash(p, 10)));
 
   const users = [
-    { id: 100, name: 'أحمد الشريف', email: 'ahmed@ingaz.com', password: hashedPasswords[0], role_id: ROLES.ADMIN, status: 'active' },
-    { id: 101, name: 'سارة النمر', email: 'sara@ingaz.com', password: hashedPasswords[1], role_id: ROLES.DEPUTY, status: 'active' },
-    { id: 102, name: 'محمد العبدالله', email: 'mohamed@ingaz.com', password: hashedPasswords[2], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 103, name: 'نورة السعيد', email: 'noura@ingaz.com', password: hashedPasswords[3], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 104, name: 'خالد المطيري', email: 'khalid@ingaz.com', password: hashedPasswords[4], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 105, name: 'منى الحربي', email: 'mona@ingaz.com', password: hashedPasswords[5], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 106, name: 'فيصل الدوسري', email: 'faisal@ingaz.com', password: hashedPasswords[6], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 107, name: 'هند القحطاني', email: 'hind@ingaz.com', password: hashedPasswords[7], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 108, name: 'سامي الزهراني', email: 'sami@ingaz.com', password: hashedPasswords[8], role_id: ROLES.EMPLOYEE, status: 'active' },
-    { id: 109, name: 'ليلى الغامدي', email: 'laila@ingaz.com', password: hashedPasswords[9], role_id: ROLES.EMPLOYEE, status: 'active' },
+    { id: 100, name: 'أحمد الشريف', email: 'ahmed@ingaz.com', password: hashedPasswords[0], role_id: null, is_manager: 1, status: 'active' },
+    { id: 101, name: 'سارة النمر', email: 'sara@ingaz.com', password: hashedPasswords[1], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 102, name: 'محمد العبدالله', email: 'mohamed@ingaz.com', password: hashedPasswords[2], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 103, name: 'نورة السعيد', email: 'noura@ingaz.com', password: hashedPasswords[3], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 104, name: 'خالد المطيري', email: 'khalid@ingaz.com', password: hashedPasswords[4], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 105, name: 'منى الحربي', email: 'mona@ingaz.com', password: hashedPasswords[5], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 106, name: 'فيصل الدوسري', email: 'faisal@ingaz.com', password: hashedPasswords[6], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 107, name: 'هند القحطاني', email: 'hind@ingaz.com', password: hashedPasswords[7], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 108, name: 'سامي الزهراني', email: 'sami@ingaz.com', password: hashedPasswords[8], role_id: participantRoleId, is_manager: 0, status: 'active' },
+    { id: 109, name: 'ليلى الغامدي', email: 'laila@ingaz.com', password: hashedPasswords[9], role_id: participantRoleId, is_manager: 0, status: 'active' },
   ];
 
   for (const u of users) {
     const existing = await get('SELECT id FROM users WHERE email = $1', u.email);
     if (!existing) {
-      await pool.query('INSERT INTO users (id, name, email, password, role_id, status, credit_score) VALUES ($1, $2, $3, $4, $5, $6, $7)', [u.id, u.name, u.email, u.password, u.role_id, u.status, 10]);
+      await pool.query('INSERT INTO users (id, name, email, password, role_id, is_manager, status, credit_score) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)', [u.id, u.name, u.email, u.password, u.role_id, u.is_manager, u.status, 10]);
     }
   }
-  console.log('✅ 10 users seeded (admin, deputy, 8 employees)');
+  console.log('✅ 10 users seeded (manager + 9 with مشارك role)');
 
   // ============================================================
   // 2. PROJECTS (5)
@@ -326,10 +329,11 @@ async function main() {
 
   console.log('\n🎉 Data seeding complete!');
   console.log('\n🔑 Login credentials:');
-  console.log('   Admin:  admin@ingaz.com / admin123');
-  console.log('   Deputy: sara@ingaz.com / sara123');
-  console.log('   Employee: mohamed@ingaz.com / mohamed123');
-  console.log('   (All employees have password: name@ingaz.com / name123)');
+  console.log('   Manager: admin@ingaz.com / admin123');
+  console.log('   Manager: ahmed@ingaz.com / ahmed123');
+  console.log('   User:    sara@ingaz.com / sara123');
+  console.log('   User:    mohamed@ingaz.com / mohamed123');
+  console.log('   (All test users have password: name@ingaz.com / name123)');
 }
 
 main().catch(e => { console.error('Seed failed:', e); process.exit(1); });

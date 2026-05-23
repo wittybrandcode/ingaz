@@ -1,7 +1,6 @@
 import React from 'react'
 import { Clock, Paperclip, File, Check, X, Loader2 } from 'lucide-react'
 import { STATUS_LABELS, type Subtask, type Attachment, type User, type Assignee } from '../types'
-import { ROLES } from '../constants'
 import type { StatusConfig } from '../statusConfig'
 import Avatar from './Avatar'
 import AssigneePicker from './AssigneePicker'
@@ -52,11 +51,10 @@ function SubtaskRow({
 }: SubtaskRowProps) {
   const cfg = statusConfig[st.status]
   const Icon = cfg.icon
-  const isManager = user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY
+  const isManager = user?.is_manager
   const assignees: Assignee[] = st.assignees || []
   const filteredUsers = users.filter(u => {
     if (assignees.some(a => a.user_id === u.id)) return false
-    if (u.role_id !== ROLES.EMPLOYEE) return false
     return true
   })
 

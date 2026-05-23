@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { MessageSquare, Star, Award, Loader2, Lock } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import { ROLES } from '../constants'
 import socket from '../lib/socket'
 import Avatar from './Avatar'
 import TiptapEditor from './TiptapEditor'
@@ -38,7 +37,7 @@ export default function Comments({ subtaskId, winnerCommentId }: Props) {
 
   const isClosed = !!winnerCommentId
 
-  const canSelectWinner = (user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY || permissions.includes('subtasks.complete')) && !isClosed
+  const canSelectWinner = (user?.is_manager || permissions.includes('subtasks.complete')) && !isClosed
 
   const load = async () => {
     try {

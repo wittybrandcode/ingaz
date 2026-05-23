@@ -52,7 +52,7 @@ describe('AuthService', () => {
 
   it('login with wrong password throws 401', async () => {
     const db = await createTestDb()
-    seedUser(db, { id: 1, email: 'user@test.com', role_id: 3 })
+    seedUser(db, { id: 1, email: 'user@test.com', role_id: 2 })
     const service = new AuthService(db)
 
     await expect(service.login('user@test.com', 'wrongpass')).rejects.toThrow('بيانات الدخول غير صحيحة')
@@ -67,7 +67,7 @@ describe('AuthService', () => {
 
   it('me returns user data for valid id', async () => {
     const db = await createTestDb()
-    seedUser(db, { id: 5, name: 'Alice', email: 'alice@test.com', role_id: 3 })
+    seedUser(db, { id: 5, name: 'Alice', email: 'alice@test.com', role_id: 2 })
     const service = new AuthService(db)
 
     const result = await service.me(5)
@@ -85,7 +85,7 @@ describe('AuthService', () => {
 
   it('login with inactive user still returns data', async () => {
     const db = await createTestDb()
-    seedUser(db, { id: 1, name: 'Inactive', email: 'inactive@test.com', role_id: 3, status: 'inactive' })
+    seedUser(db, { id: 1, name: 'Inactive', email: 'inactive@test.com', role_id: 2, status: 'inactive' })
     const service = new AuthService(db)
 
     const result = await service.login('inactive@test.com', 'password123')

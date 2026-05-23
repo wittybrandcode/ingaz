@@ -12,6 +12,7 @@ export const users = sqliteTable('users', {
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
+  isManager: integer('is_manager').default(0),
   avatar: text('avatar'),
   status: text('status').default('active'),
   creditScore: integer('credit_score').default(10),

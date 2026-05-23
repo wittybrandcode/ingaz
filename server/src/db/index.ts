@@ -64,12 +64,23 @@ export async function addActivityLog(userId: number, action: string, details: st
 }
 
 export async function getUserPermissions(userId: number): Promise<string[]> {
+  const [user] = await getDb()
+    .select({ isManager: schema.users.isManager, roleId: schema.users.roleId })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1)
+  if (user?.isManager) {
+    const rows = await getDb()
+      .select({ key: schema.permissions.key })
+      .from(schema.permissions)
+    return rows.map((r: any) => r.key)
+  }
+  if (!user?.roleId) return []
   const rows = await getDb()
     .select({ key: schema.permissions.key })
-    .from(schema.users)
-    .innerJoin(schema.rolePermissions, eq(schema.users.roleId, schema.rolePermissions.roleId))
+    .from(schema.rolePermissions)
     .innerJoin(schema.permissions, eq(schema.rolePermissions.permissionId, schema.permissions.id))
-    .where(eq(schema.users.id, userId))
+    .where(eq(schema.rolePermissions.roleId, user.roleId))
   return rows.map((r: any) => r.key)
 }
 

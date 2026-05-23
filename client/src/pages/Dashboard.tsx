@@ -8,22 +8,7 @@ import {
 } from 'lucide-react'
 import type { DashboardData } from '../types'
 import { exportToCSV } from '../lib/exportToCSV'
-
-const statusColors: Record<string, string> = {
-  open: 'bg-gray-100 text-gray-700',
-  in_progress: 'bg-blue-100 text-blue-700',
-  completed: 'bg-green-100 text-green-700',
-  cancelled: 'bg-red-100 text-red-700',
-  deferred: 'bg-yellow-100 text-yellow-700',
-}
-
-const statusLabels: Record<string, string> = {
-  open: 'مفتوحة',
-  in_progress: 'قيد التنفيذ',
-  completed: 'منفذة',
-  cancelled: 'ملغية',
-  deferred: 'مؤجلة',
-}
+import { SUBTASK_STATUS_CONFIG } from '../statusConfig'
 
 export default function Dashboard() {
   const user = useAuthStore(s => s.user)
@@ -123,7 +108,7 @@ export default function Dashboard() {
             {data.status_distribution.map(s => (
               <div key={s.status}>
                 <div className="flex justify-between text-sm mb-1">
-                  <span className={statusColors[s.status] + ' px-2 py-0.5 rounded text-xs'}>{statusLabels[s.status]}</span>
+                  <span className={(SUBTASK_STATUS_CONFIG[s.status]?.bg || 'bg-gray-100') + ' ' + (SUBTASK_STATUS_CONFIG[s.status]?.color || 'text-gray-700') + ' px-2 py-0.5 rounded text-xs'}>{SUBTASK_STATUS_CONFIG[s.status]?.label || s.status}</span>
                   <span className="text-gray-600 font-medium">{s.count}</span>
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-2">

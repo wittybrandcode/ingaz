@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
 import api from '../lib/api'
+import { useParams, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { ROLES } from '../constants'
+import { useProjectStore } from '../store/projectStore'
+import { useSubtaskStore } from '../store/subtaskStore'
+import { useTaskStore } from '../store/taskStore'
 import {
   ArrowRight, Edit3, Check, X, Loader2, AlertCircle
 } from 'lucide-react'
@@ -17,7 +19,7 @@ import { ProjectDetailSkeleton } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import TaskList from '../components/ProjectDetail/TaskList'
 import SubtaskPanel from '../components/ProjectDetail/SubtaskPanel'
-import type { ProjectDetail, Task, Subtask, Attachment } from '../types'
+import type { Task, Subtask, Attachment } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
 import { TICKET_STATUS_CONFIG as statusConfig } from '../statusConfig'
 
@@ -25,12 +27,21 @@ export default function ProjectDetail() {
   const { id } = useParams()
   const user = useAuthStore(s => s.user)
   const permissions = useAuthStore(s => s.permissions)
-  const [project, setProject] = useState<ProjectDetail | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const abortRef = useRef<AbortController | null>(null)
-  const subtaskAbortRef = useRef<AbortController | null>(null)
-  const [subtasks, setSubtasks] = useState<Subtask[]>([])
-  const [selectedTask, setSelectedTask] = useState<number | null>(null)
+  const project = useProjectStore(s => s.project)
+  const loadProject = useProjectStore(s => s.loadProject)
+  const updateProjectDescFn = useProjectStore(s => s.updateProjectDesc)
+  const addMemberFn = useProjectStore(s => s.addMember)
+  const removeMemberFn = useProjectStore(s => s.removeMember)
+  const subtasks = useSubtaskStore(s => s.subtasks)
+  const loadSubtasksStore = useSubtaskStore(s => s.loadSubtasks)
+  const selectTask = useTaskStore(s => s.setSelectedTaskId)
+  const createTaskStore = useTaskStore(s => s.createTask)
+  const addTask = useTaskStore(s => s.addTask)
+  const updateTask = useTaskStore(s => s.updateTask)
+  const removeTask = useTaskStore(s => s.removeTask)
+  const addSubtask = useSubtaskStore(s => s.addSubtask)
+  const removeSubtask = useSubtaskStore(s => s.removeSubtask)
+  const updateSubtaskStore = useSubtaskStore(s => s.updateSubtask)
   const users = useAppStore(s => s.users)
   const loadUsers = useAppStore(s => s.loadUsers)
   const roles = useAppStore(s => s.roles)
@@ -40,72 +51,25 @@ export default function ProjectDetail() {
   const [editProjectDesc, setEditProjectDesc] = useState(false); const [projectDesc, setProjectDesc] = useState('')
   const [savingDesc, setSavingDesc] = useState(false)
   const { toast } = useToast()
-  const selectedTaskRef = useRef(selectedTask)
-  selectedTaskRef.current = selectedTask
-  const projectRef = useRef(project)
-  projectRef.current = project
+  const selectedTaskId = useTaskStore(s => s.selectedTaskId)
+  const selectedTaskRef = useRef<number | null>(null)
 
-  const load = async () => {
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-    setLoadError(null)
-    try {
-      const { data: projectData } = await api.get<ProjectDetail>(`/projects/${id}`, { signal: controller.signal })
-      setProject(projectData)
-      loadUsers()
-      loadRoles()
-    } catch (e) {
-      if (e instanceof DOMException && e.name === 'AbortError') return
-      setLoadError('فشل تحميل بيانات المشروع. يرجى المحاولة مرة أخرى.')
-      console.error('Failed to load project', e)
-    }
-  }
-
-  const loadSubtasks = async (taskId: number) => {
-    setSelectedTask(taskId)
-    subtaskAbortRef.current?.abort()
-    const controller = new AbortController()
-    subtaskAbortRef.current = controller
-    const { data } = await api.get<Subtask[]>(`/subtasks/task/${taskId}`, { signal: controller.signal })
-    setSubtasks(data)
-    if (data.length > 0) {
-      try {
-        const ids = data.map((st: Subtask) => st.id)
-        const { data: attMap } = await api.get<Record<number, Attachment[]>>('/uploads', { params: { entity_type: 'subtask', entity_ids: ids.join(','), groupBy: 'true' } })
-        setAttachments(attMap)
-      } catch (e) { console.error('Failed to load attachments', e) }
-    } else {
-      setAttachments({})
-    }
-  }
-
-  useEffect(() => { load() }, [id])
+  useEffect(() => { loadProject(Number(id)); loadUsers(); loadRoles() }, [id])
 
   useEffect(() => {
     const subtaskUpdated = (st: Subtask) => {
-      if (st.task_id === selectedTaskRef.current) {
-        setSubtasks(prev => prev.map(s => s.id === st.id ? st : s))
-      }
+      updateSubtaskStore(st.id, st)
     }
     const listHandler = (msg: { type: string; action: string; data: any }) => {
-      const p = projectRef.current
       const stId = selectedTaskRef.current
-      if (msg.type === 'task' && p) {
-        if (msg.action === 'created' && msg.data.project_id === p.id) {
-          setProject({ ...p, tasks: [msg.data, ...p.tasks] })
-        } else if (msg.action === 'updated') {
-          setProject({ ...p, tasks: p.tasks.map(t => t.id === msg.data.id ? { ...t, ...msg.data } : t) })
-        } else if (msg.action === 'deleted') {
-          setProject({ ...p, tasks: p.tasks.filter(t => t.id !== msg.data.id) })
-        }
+      if (msg.type === 'task') {
+        if (msg.action === 'created') addTask(msg.data)
+        else if (msg.action === 'updated') updateTask(msg.data.id, msg.data)
+        else if (msg.action === 'deleted') removeTask(msg.data.id)
       }
       if (msg.type === 'subtask' && stId) {
-        if (msg.action === 'created' && msg.data.task_id === stId) {
-          setSubtasks(prev => [msg.data, ...prev])
-        } else if (msg.action === 'deleted') {
-          setSubtasks(prev => prev.filter(s => s.id !== msg.data.id))
-        }
+        if (msg.action === 'created' && msg.data.task_id === stId) addSubtask(msg.data)
+        else if (msg.action === 'deleted') removeSubtask(msg.data.id)
       }
     }
     socket.on('subtask:updated', subtaskUpdated)
@@ -113,34 +77,44 @@ export default function ProjectDetail() {
     return () => { socket.off('subtask:updated', subtaskUpdated); socket.off('list:update', listHandler) }
   }, [])
 
+  const loadSubtasks = async (taskId: number) => {
+    selectTask(taskId)
+    selectedTaskRef.current = taskId
+    loadSubtasksStore(taskId)
+    setAttachments({})
+  }
+
   const createTask = async (titleVal: string, descVal: string, filesVal: File[]) => {
     if (!titleVal.trim()) return
     const tempId = -Date.now()
     const tempTask: Task = { id: tempId, project_id: Number(id), title: titleVal, description: descVal, subtasks_count: 0, completed_count: 0, status: 'open', created_at: new Date().toISOString() }
-    setProject(prev => prev ? { ...prev, tasks: [tempTask, ...prev.tasks] } : prev)
+    addTask(tempTask)
     try {
-      const { data: task } = await api.post<Task>('/tasks', { project_id: Number(id), title: titleVal, description: descVal })
+      const task = await createTaskStore(Number(id), titleVal, descVal)
+      if (!task) throw new Error('فشل إنشاء المهمة')
       if (filesVal.length > 0) {
         const fd = new FormData()
         filesVal.forEach(f => fd.append('files', f))
         fd.append('entity_type', 'task'); fd.append('entity_id', String(task.id))
         await api.post('/uploads', fd)
       }
-      setProject(prev => prev ? { ...prev, tasks: prev.tasks.map(t => t.id === tempId ? task : t) } : prev)
+      updateTask(tempId, task)
     } catch (e) {
       console.error('createTask failed', e)
-      setProject(prev => prev ? { ...prev, tasks: prev.tasks.filter(t => t.id !== tempId) } : prev)
+      removeTask(tempId)
       toast('فشل إنشاء المهمة', 'error')
     }
   }
 
 
 
-  if (loadError) return (
+  const projectError = useProjectStore(s => s.error)
+
+  if (projectError) return (
     <div className="flex flex-col items-center justify-center py-20 gap-4">
       <AlertCircle className="w-12 h-12 text-red-400" />
-      <p className="text-gray-600 text-lg">{loadError}</p>
-      <button onClick={load} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+      <p className="text-gray-600 text-lg">{projectError}</p>
+      <button onClick={() => loadProject(Number(id))} className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
         إعادة المحاولة
       </button>
     </div>
@@ -159,7 +133,7 @@ export default function ProjectDetail() {
       <div className="bg-white rounded-xl border border-gray-200 p-5">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">{project.title}</h1>
-          {(user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY) && (
+          {user?.is_manager && (
             <button onClick={() => { setEditProjectDesc(!editProjectDesc); setProjectDesc(project.description || '') }}
               className="p-2 rounded-full hover:bg-gray-100" title={editProjectDesc ? 'إلغاء' : 'تعديل الوصف'}>
               {editProjectDesc ? <X className="w-4 h-4" /> : <Edit3 className="w-4 h-4 text-indigo-500" />}
@@ -172,7 +146,7 @@ export default function ProjectDetail() {
             <div className="flex gap-2">
               <button onClick={async () => {
                 setSavingDesc(true)
-                try { await api.put(`/projects/${project.id}`, { description: projectDesc }); setProject(prev => prev ? { ...prev, description: projectDesc } : prev); setEditProjectDesc(false) } catch (e) { console.error('saveProjectDesc failed', e) } finally { setSavingDesc(false) }
+                try { const ok = await updateProjectDescFn(project.id, projectDesc); if (ok) setEditProjectDesc(false); else toast('فشل الحفظ', 'error') } catch (e) { console.error('saveProjectDesc failed', e) } finally { setSavingDesc(false) }
               }} disabled={savingDesc} className="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" title="حفظ">
                 {savingDesc ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
               </button>
@@ -209,7 +183,6 @@ export default function ProjectDetail() {
         <AssigneePicker
           assignees={project.members.map(m => ({ user_id: m.user_id, name: m.name, avatar: m.avatar }))}
           availableUsers={users.filter(u => {
-            if (u.role_id !== ROLES.EMPLOYEE) return false
             const role = roles.find(r => r.id === u.role_id)
             const perms = role?.permissions ?? []
             if (!perms.includes('subtasks.create')) return false
@@ -217,15 +190,8 @@ export default function ProjectDetail() {
             if (!perms.includes('comments.create')) return false
             return true
           })}
-          onAdd={async (userId) => {
-            await api.post(`/projects/${id}/members`, { user_id: userId })
-            const { data: member } = await api.get(`/projects/${id}/members`)
-            setProject(prev => prev ? { ...prev, members: member } : prev)
-          }}
-          onRemove={async (userId) => {
-            await api.delete(`/projects/${id}/members/${userId}`)
-            setProject(prev => prev ? { ...prev, members: prev.members.filter(m => m.user_id !== userId) } : prev)
-          }}
+          onAdd={async (userId) => { await addMemberFn(Number(id), userId) }}
+          onRemove={async (userId) => { await removeMemberFn(Number(id), userId) }}
           canAssign={permissions.includes('projects.assign')}
         />
       </div>
@@ -233,17 +199,16 @@ export default function ProjectDetail() {
       <div className="grid lg:grid-cols-3 gap-6">
         <TaskList
           tasks={project.tasks}
-          selectedTaskId={selectedTask}
+          selectedTaskId={selectedTaskId}
           onSelectTask={loadSubtasks}
           onCreateTask={createTask}
-          canCreate={user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY}
-          userRole={user?.role_id}
+          canCreate={user?.is_manager === 1}
+          isManager={user?.is_manager === 1}
         />
 
         <SubtaskPanel
           subtasks={subtasks}
-          setSubtasks={setSubtasks}
-          selectedTaskId={selectedTask}
+          selectedTaskId={selectedTaskId}
           statusConfig={statusConfig}
           user={user}
           users={users}

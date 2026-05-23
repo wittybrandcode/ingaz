@@ -22,6 +22,7 @@ const notifService = new NotificationService(getDb())
 import { runMigrations } from './migrate.js';
 import { camelToSnake } from './lib/case-transform.js';
 import { DeadlineService } from './services/DeadlineService.js';
+import { BackgroundJobService } from './services/BackgroundJobService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -191,6 +192,7 @@ runMigrations().then(() => {
 const CREDIT_RECOVERY_MS = 24 * 3600000;
 
 const deadlineService = new DeadlineService(getDb())
+const bgService = new BackgroundJobService()
 
 async function autoRecoverCredit() {
   const db = getDb()
@@ -301,28 +303,6 @@ async function checkExpiredWarnings() {
   }
 }
 
-const INTERVAL_1MIN = 60000;
-
-const jobRegistry = new Map<string, Promise<void>>();
-
-function safeInterval(name: string, fn: () => Promise<void>, ms: number) {
-  const run = async () => {
-    if (jobRegistry.has(name)) {
-      logger.warn({ job: name }, 'Background job skipped — previous run still in progress');
-      return;
-    }
-    const promise = fn().catch(e => {
-      logger.error({ job: name, err: e }, 'Background job error');
-    }).finally(() => {
-      jobRegistry.delete(name);
-    });
-    jobRegistry.set(name, promise);
-    await promise;
-  };
-  setInterval(run, ms);
-  run();
-}
-
 async function sendDailySummaries() {
   const db = getDb()
   const activeUsers = await db
@@ -339,7 +319,16 @@ async function sendDailySummaries() {
   }
 }
 
-safeInterval('checkDeadlines', () => deadlineService.checkDeadlines(io), INTERVAL_1MIN);
-safeInterval('checkExpiredWarnings', checkExpiredWarnings, INTERVAL_1MIN);
-safeInterval('autoRecoverCredit', autoRecoverCredit, INTERVAL_1MIN);
-safeInterval('sendDailySummaries', sendDailySummaries, 12 * 3600000);
+const INTERVAL_1MIN = 60000;
+
+bgService.register({ type: 'checkDeadlines', intervalMs: INTERVAL_1MIN, execute: () => deadlineService.checkDeadlines(io) });
+bgService.register({ type: 'checkExpiredWarnings', intervalMs: INTERVAL_1MIN, execute: checkExpiredWarnings });
+bgService.register({ type: 'autoRecoverCredit', intervalMs: INTERVAL_1MIN, execute: autoRecoverCredit });
+bgService.register({ type: 'sendDailySummaries', intervalMs: 12 * 3600000, execute: sendDailySummaries });
+
+runMigrations().then(() => {
+  httpServer.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+    bgService.start();
+  });
+});

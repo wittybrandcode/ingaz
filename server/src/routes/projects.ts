@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { ROLES } from '../constants.js'
-import { authenticate, authorize, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
+import { authenticate, requireManager, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
 import { validate, createProjectSchema, updateProjectSchema } from '../validation.js'
 import { projectService, AppError } from '../services/index.js'
 import type { ServiceContext } from '../services/index.js'
@@ -8,7 +7,7 @@ import type { ServiceContext } from '../services/index.js'
 const router = Router()
 
 function ctx(req: any): ServiceContext {
-  return { userId: req.user.id, roleId: req.user.role_id, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
+  return { userId: req.user.id, roleId: req.user.role_id, isManager: req.user.is_manager, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
 }
 
 function tryCatch(handler: (req: any, res: any) => Promise<any> | any) {
@@ -35,12 +34,12 @@ router.get('/', authenticate, async (req: any, res: any) => {
   res.success(result.data)
 })
 
-router.post('/', authenticate, checkFrozen, authorize(ROLES.ADMIN, ROLES.DEPUTY), requireCredit('canCreateProjects'), validate(createProjectSchema), tryCatch(async (req, res) => {
+router.post('/', authenticate, checkFrozen, authorizePermission('projects.create'), requireCredit('canCreateProjects'), validate(createProjectSchema), tryCatch(async (req, res) => {
   const project = await projectService.create(req.body, ctx(req))
   res.success(project, 201)
 }))
 
-router.put('/:id', authenticate, checkFrozen, authorize(ROLES.ADMIN, ROLES.DEPUTY), validate(updateProjectSchema), tryCatch(async (req, res) => {
+router.put('/:id', authenticate, checkFrozen, authorizePermission('projects.edit'), validate(updateProjectSchema), tryCatch(async (req, res) => {
   const project = await projectService.update(Number(req.params.id), req.body, ctx(req))
   res.success(project)
 }))
@@ -65,12 +64,12 @@ router.delete('/:id/members/:userId', authenticate, authorizePermission('project
   res.success(result)
 }))
 
-router.post('/:id/archive', authenticate, authorize(ROLES.ADMIN), tryCatch(async (req, res) => {
+router.post('/:id/archive', authenticate, requireManager, tryCatch(async (req, res) => {
   const result = await projectService.archive(Number(req.params.id), ctx(req))
   res.success(result)
 }))
 
-router.delete('/:id/permanent', authenticate, authorize(ROLES.ADMIN), tryCatch(async (req, res) => {
+router.delete('/:id/permanent', authenticate, requireManager, tryCatch(async (req, res) => {
   const result = await projectService.permanentDelete(Number(req.params.id), ctx(req))
   res.success(result)
 }))

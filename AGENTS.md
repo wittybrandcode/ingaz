@@ -18,8 +18,7 @@ cd client && npm run lint          # client ESLint
 | Role | Email | Password |
 |------|-------|----------|
 | Admin | admin@ingaz.com | admin123 |
-| Deputy | deputy@ingaz.com | deputy123 |
-| Employee | emp@ingaz.com | emp123 |
+| User | emp@ingaz.com | emp123 |
 
 ## Before editing
 ```bash
@@ -91,6 +90,7 @@ Routes `/api`, `/socket.io`, `/uploads` → `http://localhost:3001`
 | `db-agent` | Handle Drizzle schema + migrations |
 | `client-agent` | Improve React components + stores |
 | `docs-agent` | Write documentation |
+| `member-system` | Build member card/avatar/badge system |
 
 ### Custom Skills (.opencode/skills/)
 | Skill | Purpose |
@@ -99,16 +99,42 @@ Routes `/api`, `/socket.io`, `/uploads` → `http://localhost:3001`
 | `phase-document` | Write phase completion markdown |
 | `session-handoff` | Create context handoff for new sessions |
 | `git-commit` | Commit phase changes |
+| `member-system` | Execute member system plan (6 phases) |
 
 ### Per-Phase Workflow
 ```
 1. Load context (AGENTS.md + latest docs/)
-2. Execute fixes (parallel task agents when possible)
-3. phase-verify (typecheck + lint + test)
-4. phase-document (write docs/phase-N-*.md)
-5. git-commit
-6. session-handoff if context full → open new session
+2. Load skill member-system (reads STATUS.md → determines current phase)
+3. Execute fixes (parallel task agents when possible)
+4. phase-verify (typecheck + lint + test)
+5. phase-document (write docs/phase-N-*.md)
+6. git-commit
+7. Update plans/member-system/STATUS.md → next phase
+8. session-handoff if context full → open new session
 ```
+
+## Active Plan System
+
+### Location: `plans/member-system/`
+- `README.md` — Overview + architecture + self-resuming mechanism
+- `plan.md` — Detailed 6-phase plan with code specs
+- `STATUS.md` — Execution tracker (machine-readable JSON + human table)
+
+### Resume Protocol
+1. Read `plans/member-system/STATUS.md`
+2. Identify `phase` and `current_step`
+3. Continue from that exact point
+4. No manual intervention needed between phases
+
+### Phase Map
+| Phase | Name | File |
+|-------|------|------|
+| 1 | Member API | `server/src/services/MemberService.ts` |
+| 2 | Member Store | `client/src/store/memberStore.ts` |
+| 3 | MemberCard + MemberList | `client/src/components/` |
+| 4 | Online Status via Socket | `server/index.ts` + `client/lib/socket.ts` |
+| 5 | Action Icons + Assign/Warn | Modals |
+| 6 | MemberDetailModal | Full detail modal |
 
 ## Problems Discovered (from analysis/)
 

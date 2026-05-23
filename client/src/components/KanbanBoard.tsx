@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Plus, List, UserCheck, ClipboardList, AlertTriangle } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import { ROLES } from '../constants'
 import socket from '../lib/socket'
 import ProjectCard from './ProjectCard'
 import TaskCard from './TaskCard'
@@ -56,6 +55,11 @@ export default function KanbanBoard() {
   const [colorTheme, setColorTheme] = useState('default')
   const [showCreateProject, setShowCreateProject] = useState(false)
   const [newProjectTitle, setNewProjectTitle] = useState('')
+  const [showCreateTask, setShowCreateTask] = useState(false)
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [showCreateSubtask, setShowCreateSubtask] = useState(false)
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('')
+  const [newSubtaskTaskId, setNewSubtaskTaskId] = useState<number | null>(null)
 
   // Modal state
   const [viewItem, setViewItem] = useState<{ type: 'project' | 'task' | 'subtask'; data: any } | null>(null)
@@ -260,7 +264,7 @@ export default function KanbanBoard() {
               <span className="text-xs font-bold text-gray-600">المشاريع</span>
               <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.1)', color: '#333' }}>{projects.length}</span>
             </div>
-            {(user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY) && (
+            {user?.is_manager && (
               <button onClick={() => setShowCreateProject(true)}
                 className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background: 'rgba(0,0,0,0.08)', color: '#777' }} title="إضافة مشروع">
                 <Plus className="w-3 h-3" />
@@ -302,12 +306,31 @@ export default function KanbanBoard() {
 
         {/* Column 1: المهام */}
         <KanbanColumn header={
-          <div className="flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-gray-600" />
-            <span className="text-xs font-bold text-gray-600">المهام</span>
-            <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.1)', color: '#333' }}>{filteredTasks.length}</span>
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="w-4 h-4 text-gray-600" />
+              <span className="text-xs font-bold text-gray-600">المهام</span>
+              <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.1)', color: '#333' }}>{filteredTasks.length}</span>
+            </div>
+            {selectedProject && user?.is_manager && (
+              <button onClick={() => setShowCreateTask(true)}
+                className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background: 'rgba(0,0,0,0.08)', color: '#777' }} title="إضافة مهمة">
+                <Plus className="w-3 h-3" />
+              </button>
+            )}
           </div>
         } bg={columnBg[1]}>
+            {showCreateTask && selectedProject && (
+              <form onSubmit={async (e) => { e.preventDefault(); if (!newTaskTitle.trim()) return; try { const { data } = await api.post('/tasks', { project_id: selectedProject.id, title: newTaskTitle }); setTasks(prev => prev.some(t => t.id === data.id) ? prev : [data, ...prev]); setShowCreateTask(false); setNewTaskTitle('') } catch (e) { console.error('createTask failed', e) } }}
+                className="mx-2 mb-2 p-2 bg-white rounded-lg shadow-sm border border-gray-200">
+                <input value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)} placeholder="اسم المهمة"
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500 mb-1" autoFocus />
+                <div className="flex gap-1">
+                  <button type="submit" className="px-2 py-1 bg-indigo-600 text-white rounded text-[0.6rem] font-medium hover:bg-indigo-700">إنشاء</button>
+                  <button type="button" onClick={() => { setShowCreateTask(false); setNewTaskTitle('') }} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[0.6rem] hover:bg-gray-200">إلغاء</button>
+                </div>
+              </form>
+            )}
             {!selectedProject ? (
               <div className="text-center py-8 text-gray-400 text-xs">اختر مشروعاً لعرض المهام</div>
             ) : filteredTasks.length === 0 ? (
@@ -339,6 +362,12 @@ export default function KanbanBoard() {
               <span className="w-5 h-5 rounded-full text-[0.6rem] font-bold flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.1)', color: '#333' }}>{filteredSubtasks.length}</span>
             </div>
             <div className="flex items-center gap-1">
+              {selectedProject && user?.is_manager && (
+                <button onClick={() => { setShowCreateSubtask(true); setNewSubtaskTaskId(selectedTask?.id ?? null) }}
+                  className="w-6 h-6 rounded-full border-none flex items-center justify-center text-xs cursor-pointer transition-all hover:bg-gray-300" style={{ background: 'rgba(0,0,0,0.08)', color: '#777' }} title="إضافة مهمة فرعية">
+                  <Plus className="w-3 h-3" />
+                </button>
+              )}
               <button onClick={() => setHideCompleted(prev => !prev)}
                 className={`px-1.5 py-0.5 rounded text-[0.55rem] font-medium transition-colors ${hideCompleted ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}
                 title={hideCompleted ? 'إظهار المنجز' : 'إخفاء المنجز'}>
@@ -347,9 +376,27 @@ export default function KanbanBoard() {
             </div>
           </div>
         } bg={columnBg[2]}>
-            {!selectedTask ? (
+            {showCreateSubtask && (
+              <form onSubmit={async (e) => { e.preventDefault(); if (!newSubtaskTitle.trim()) return; try { const tid = newSubtaskTaskId ?? selectedTask?.id; if (!tid) return; const { data } = await api.post('/subtasks', { task_id: tid, title: newSubtaskTitle }); setSubtasks(prev => prev.some(s => s.id === data.id) ? prev : [data, ...prev]); setShowCreateSubtask(false); setNewSubtaskTitle('') } catch (e) { console.error('createSubtask failed', e) } }}
+                className="mx-2 mb-2 p-2 bg-white rounded-lg shadow-sm border border-gray-200">
+                <input value={newSubtaskTitle} onChange={e => setNewSubtaskTitle(e.target.value)} placeholder="اسم المهمة الفرعية"
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500 mb-1" autoFocus />
+                {!selectedTask && (
+                  <select value={newSubtaskTaskId ?? ''} onChange={e => setNewSubtaskTaskId(Number(e.target.value))}
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded text-xs outline-none focus:ring-1 focus:ring-indigo-500 mb-1">
+                    <option value="">اختر المهمة</option>
+                    {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                  </select>
+                )}
+                <div className="flex gap-1">
+                  <button type="submit" className="px-2 py-1 bg-indigo-600 text-white rounded text-[0.6rem] font-medium hover:bg-indigo-700">إنشاء</button>
+                  <button type="button" onClick={() => { setShowCreateSubtask(false); setNewSubtaskTitle(''); setNewSubtaskTaskId(null) }} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-[0.6rem] hover:bg-gray-200">إلغاء</button>
+                </div>
+              </form>
+            )}
+            {!selectedTask && !showCreateSubtask ? (
               <div className="text-center py-8 text-gray-400 text-xs">اختر مهمة لعرض المهام الفرعية</div>
-            ) : filteredSubtasks.length === 0 ? (
+            ) : filteredSubtasks.length === 0 && !showCreateSubtask ? (
               <div className="text-center py-8 text-gray-400 text-xs">لا توجد مهام فرعية</div>
             ) : (
               filteredSubtasks.map((s, i) => (

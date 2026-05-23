@@ -8,7 +8,6 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import AssigneePicker from './AssigneePicker'
 import TiptapEditor from './TiptapEditor'
 import { sanitizeHTML } from '../lib/sanitize'
-import { ROLES } from '../constants'
 import type { Attachment, Assignee } from '../types'
 
 interface TaskSettingsModalProps {
@@ -137,7 +136,6 @@ export default function TaskSettingsModal({ task, onClose, onUpdate, onDelete }:
             <AssigneePicker
               assignees={assignees.map(a => ({ user_id: a.user_id, name: a.name, avatar: a.avatar }))}
               availableUsers={users.filter(u => {
-                if (u.role_id !== ROLES.EMPLOYEE) return false
                 const role = roles.find(r => r.id === u.role_id)
                 const perms = role?.permissions ?? []
                 if (!perms.includes('subtasks.submit')) return false

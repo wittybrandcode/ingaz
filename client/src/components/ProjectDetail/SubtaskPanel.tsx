@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { Plus, Paperclip } from 'lucide-react'
 import api from '../../lib/api'
+import { useSubtaskStore } from '../../store/subtaskStore'
 import SubtaskRow from '../SubtaskRow'
 import { useToast } from '../Toast'
-import { ROLES } from '../../constants'
 import type { StatusConfig } from '../../statusConfig'
 import type { Subtask, Attachment, User } from '../../types'
 
 interface SubtaskPanelProps {
   subtasks: Subtask[]
-  setSubtasks: React.Dispatch<React.SetStateAction<Subtask[]>>
   selectedTaskId: number | null
   statusConfig: StatusConfig
   user: User | null
@@ -19,8 +18,11 @@ interface SubtaskPanelProps {
   permissions: string[]
 }
 
-export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, statusConfig, user, users, attachments, onPreview, permissions }: SubtaskPanelProps) {
+export default function SubtaskPanel({ subtasks, selectedTaskId, statusConfig, user, users, attachments, onPreview, permissions }: SubtaskPanelProps) {
   const { toast } = useToast()
+  const addSubtask = useSubtaskStore(s => s.addSubtask)
+  const updateSubtaskStore = useSubtaskStore(s => s.updateSubtask)
+  const removeSubtask = useSubtaskStore(s => s.removeSubtask)
 
   const [subForm, setSubForm] = useState(false)
   const [subTitle, setSubTitle] = useState('')
@@ -41,7 +43,7 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
     const tempId = -Date.now()
     const foundUser = users.find(u => u.id === Number(subAssign))
     const tempSub: Subtask = { id: tempId, task_id: selectedTaskId, title: subTitle, description: subDesc || null, assigned_to: subAssign ? Number(subAssign) : null, assigned_to_name: foundUser?.name || null, assigned_to_avatar: foundUser?.avatar || null, status: 'open', deadline: subDeadline || null, created_at: new Date().toISOString() }
-    setSubtasks(prev => [tempSub, ...prev])
+    addSubtask(tempSub)
     const titleVal = subTitle; const descVal = subDesc; const assignVal = subAssign; const deadlineVal = subDeadline; const filesVal = subFiles; const taskId = selectedTaskId
     setSubTitle(''); setSubDesc(''); setSubAssign(''); setSubDeadline(''); setSubFiles([]); setSubForm(false)
     setCreatingSub(true)
@@ -56,10 +58,10 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
         fd.append('entity_type', 'subtask'); fd.append('entity_id', String(subtask.id))
         await api.post('/uploads', fd)
       }
-      setSubtasks(prev => prev.map(s => s.id === tempId ? subtask : s))
+      updateSubtaskStore(tempId, subtask)
     } catch (e) {
       console.error('createSubtask failed', e)
-      setSubtasks(prev => prev.filter(s => s.id !== tempId))
+      removeSubtask(tempId)
       toast('فشل إنشاء المهمة الفرعية', 'error')
     } finally { setCreatingSub(false) }
   }
@@ -69,14 +71,14 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
     const prev = subtasks.find(s => s.id === subtaskId)
     if (!prev) return
     const editTitleVal = editTitle; const editDeadlineVal = editDeadline
-    setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? { ...s, title: editTitleVal, deadline: editDeadlineVal || null } : s))
+    updateSubtaskStore(subtaskId, { title: editTitleVal, deadline: editDeadlineVal || null })
     setEditSub(null)
     setUpdatingSub(subtaskId)
     try {
       await api.put(`/subtasks/${subtaskId}`, { title: editTitleVal, deadline: editDeadlineVal || null })
     } catch (e) {
       console.error('updateSubtask failed', e)
-      setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? prev : s))
+      updateSubtaskStore(subtaskId, prev)
       toast('فشل تحديث المهمة الفرعية', 'error')
     } finally { setUpdatingSub(null) }
   }
@@ -85,13 +87,13 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
     if (!selectedTaskId || !confirm('هل أنت متأكد؟')) return
     const prev = subtasks.find(s => s.id === subtaskId)
     if (!prev) return
-    setSubtasks(prevList => prevList.filter(s => s.id !== subtaskId))
+    removeSubtask(subtaskId)
     setDeletingSub(subtaskId)
     try {
       await api.delete(`/subtasks/${subtaskId}`)
     } catch (e) {
       console.error('deleteSubtask failed', e)
-      setSubtasks(prevList => [prev, ...prevList])
+      addSubtask(prev)
       toast('فشل حذف المهمة الفرعية', 'error')
     } finally { setDeletingSub(null) }
   }
@@ -101,12 +103,12 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
     if (!prev) return
     const foundUser = users.find(u => u.id === userId)
     const newAssignee = { id: -1, user_id: userId, name: foundUser?.name || '', email: foundUser?.email || '', avatar: foundUser?.avatar || null, role_id: foundUser?.role_id || 3, role_name: '', assigned_by: null, created_at: new Date().toISOString() }
-    setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? { ...s, assignees: [...(s.assignees || []), newAssignee] } : s))
+    updateSubtaskStore(subtaskId, { assignees: [...(prev.assignees || []), newAssignee] })
     try {
       await api.post(`/subtasks/${subtaskId}/assignees`, { user_id: userId })
     } catch (e) {
       console.error('handleAddAssignee failed', e)
-      setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? prev : s))
+      updateSubtaskStore(subtaskId, prev)
       toast('فشل إضافة المسؤول', 'error')
     }
   }
@@ -114,12 +116,12 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
   const handleRemoveAssignee = async (subtaskId: number, userId: number) => {
     const prev = subtasks.find(s => s.id === subtaskId)
     if (!prev) return
-    setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? { ...s, assignees: (s.assignees || []).filter(a => a.user_id !== userId) } : s))
+    updateSubtaskStore(subtaskId, { assignees: (prev.assignees || []).filter(a => a.user_id !== userId) })
     try {
       await api.delete(`/subtasks/${subtaskId}/assignees/${userId}`)
     } catch (e) {
       console.error('handleRemoveAssignee failed', e)
-      setSubtasks(prevList => prevList.map(s => s.id === subtaskId ? prev : s))
+      updateSubtaskStore(subtaskId, prev)
       toast('فشل إزالة المسؤول', 'error')
     }
   }
@@ -134,7 +136,7 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
     )
   }
 
-  const isManager = user?.role_id === ROLES.ADMIN || user?.role_id === ROLES.DEPUTY
+  const isManager = user?.is_manager
 
   return (
     <div className="lg:col-span-2 space-y-3">
@@ -155,7 +157,7 @@ export default function SubtaskPanel({ subtasks, setSubtasks, selectedTaskId, st
           <div className="flex gap-2">
             <select value={subAssign} onChange={e => setSubAssign(e.target.value)} className="flex-1 px-2 py-1.5 border border-gray-300 rounded text-sm outline-none">
               <option value="">تعيين إلى...</option>
-              {users.filter(u => u.role_id === ROLES.EMPLOYEE).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
             <input type="date" value={subDeadline} onChange={e => setSubDeadline(e.target.value)}
               className="px-2 py-1.5 border border-gray-300 rounded text-sm outline-none" />

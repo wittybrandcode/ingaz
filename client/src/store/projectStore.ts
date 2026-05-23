@@ -10,6 +10,9 @@ interface ProjectStore {
   setProject: (project: ProjectDetail | null) => void
   setMembers: (members: ProjectMember[]) => void
   loadProject: (id: number) => Promise<void>
+  updateProjectDesc: (id: number, description: string) => Promise<boolean>
+  addMember: (projectId: number, userId: number) => Promise<boolean>
+  removeMember: (projectId: number, userId: number) => Promise<boolean>
 }
 
 export const useProjectStore = create<ProjectStore>((set) => ({
@@ -23,9 +26,37 @@ export const useProjectStore = create<ProjectStore>((set) => ({
     set({ loading: true, error: null })
     try {
       const { data } = await api.get<ProjectDetail>(`/projects/${id}`)
-      set({ project: data, loading: false })
+      set({ project: data, members: data.members || [], loading: false })
     } catch {
       set({ loading: false, error: 'فشل تحميل بيانات المشروع' })
+    }
+  },
+  updateProjectDesc: async (id, description) => {
+    try {
+      await api.put(`/projects/${id}`, { description })
+      set(s => ({ project: s.project ? { ...s.project, description } : null }))
+      return true
+    } catch {
+      return false
+    }
+  },
+  addMember: async (projectId, userId) => {
+    try {
+      await api.post(`/projects/${projectId}/members`, { user_id: userId })
+      const { data } = await api.get<ProjectMember[]>(`/projects/${projectId}/members`)
+      set({ members: data })
+      return true
+    } catch {
+      return false
+    }
+  },
+  removeMember: async (projectId, userId) => {
+    try {
+      await api.delete(`/projects/${projectId}/members/${userId}`)
+      set(s => ({ members: s.members.filter(m => m.user_id !== userId) }))
+      return true
+    } catch {
+      return false
     }
   },
 }))

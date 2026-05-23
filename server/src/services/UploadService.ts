@@ -1,6 +1,5 @@
 import fs from 'fs'
 import { eq, and, inArray, sql } from 'drizzle-orm'
-import { ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema } from '../db/index.js'
@@ -15,22 +14,20 @@ export interface UploadedFile {
 }
 
 export class UploadService extends BaseService {
-  async checkPermission(entityType: string, entityId: number, userId: number, roleId: number): Promise<{ allowed: boolean; error?: string }> {
-    if (roleId === ROLES.ADMIN) return { allowed: true }
+  async checkPermission(entityType: string, entityId: number, userId: number, isManager: number): Promise<{ allowed: boolean; error?: string }> {
+    if (isManager === 1) return { allowed: true }
 
     if (entityType === 'project') {
-      if (roleId === ROLES.DEPUTY || roleId === ROLES.EMPLOYEE) return { allowed: true }
-      return { allowed: false, error: 'حسابك لا يملك صلاحية الرفع للمشاريع' }
+      return { allowed: true }
     }
 
     if (entityType === 'task') {
-      if (roleId === ROLES.DEPUTY) return { allowed: true }
       const [task] = await this.db
         .select({ createdBy: schema.tasks.createdBy })
         .from(schema.tasks)
         .where(eq(schema.tasks.id, entityId))
         .limit(1)
-      if (roleId === ROLES.EMPLOYEE && task && task.createdBy === userId) return { allowed: true }
+      if (task && task.createdBy === userId) return { allowed: true }
       return { allowed: false, error: 'لا يمكنك الرفع لهذه المهمة' }
     }
 
@@ -41,7 +38,6 @@ export class UploadService extends BaseService {
         .where(eq(schema.subtasks.id, entityId))
         .limit(1)
       if (subtask && subtask.assignedTo === userId) return { allowed: true }
-      if (roleId === ROLES.DEPUTY) return { allowed: true }
       return { allowed: false, error: 'أنت لست مسنداً لهذه المهمة الفرعية' }
     }
 
@@ -49,7 +45,7 @@ export class UploadService extends BaseService {
   }
 
   async upload(entityType: string, entityId: number, files: UploadedFile[], ctx: ServiceContext) {
-    const perm = await this.checkPermission(entityType, entityId, ctx.userId, ctx.roleId)
+    const perm = await this.checkPermission(entityType, entityId, ctx.userId, ctx.isManager)
     if (!perm.allowed) throw new AppError(403, perm.error!)
 
     if (!files || files.length === 0) throw new AppError(400, 'لم يتم رفع ملفات')
@@ -155,7 +151,7 @@ export class UploadService extends BaseService {
       .limit(1)
     if (!file) throw new AppError(404, 'الملف غير موجود')
 
-    if (file.uploadedBy !== ctx.userId && ctx.roleId !== ROLES.ADMIN) {
+    if (file.uploadedBy !== ctx.userId && !ctx.isManager) {
       throw new AppError(403, 'لا يمكنك حذف هذا الملف')
     }
 

@@ -55,8 +55,7 @@ echo.
 echo =========== Test Accounts ===========
 echo.
 echo   Admin:    admin@ingaz.com / admin123
-echo   Deputy:   deputy@ingaz.com / deputy123
-echo   Employee: emp@ingaz.com / emp123
+echo   User:     emp@ingaz.com / emp123
 echo.
 echo =====================================
 echo.
@@ -95,7 +94,7 @@ pause
 cd /d "%~dp0server"
 
 echo [1/2] Applying schema changes...
-npx tsx src/setup.ts 2>&1
+npm run db:migrate 2>&1
 if errorlevel 1 (
   echo.
   echo Schema migration failed. Check:

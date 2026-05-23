@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Plus, Paperclip } from 'lucide-react'
 import FileUpload from '../FileUpload'
 import type { Task } from '../../types'
-import { ROLES } from '../../constants'
 
 interface TaskListProps {
   tasks: Task[]
@@ -10,10 +9,10 @@ interface TaskListProps {
   onSelectTask: (taskId: number) => void
   onCreateTask: (title: string, description: string, files: File[]) => Promise<void>
   canCreate: boolean
-  userRole?: number
+  isManager?: boolean
 }
 
-export default function TaskList({ tasks, selectedTaskId, onSelectTask, onCreateTask, canCreate, userRole }: TaskListProps) {
+export default function TaskList({ tasks, selectedTaskId, onSelectTask, onCreateTask, canCreate, isManager }: TaskListProps) {
   const [taskForm, setTaskForm] = useState(false)
   const [taskTitle, setTaskTitle] = useState('')
   const [taskDesc, setTaskDesc] = useState('')
@@ -30,8 +29,6 @@ export default function TaskList({ tasks, selectedTaskId, onSelectTask, onCreate
       await onCreateTask(title, desc, files)
     } finally { setCreatingTask(false) }
   }
-
-  const isManager = userRole === ROLES.ADMIN || userRole === ROLES.DEPUTY
 
   return (
     <div className="lg:col-span-1 space-y-3">

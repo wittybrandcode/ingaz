@@ -12,6 +12,7 @@ declare module 'express-serve-static-core' {
       name: string
       avatar?: string | null
       role_id: number
+      is_manager: number
     }
   }
 }

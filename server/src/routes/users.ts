@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { ROLES } from '../constants.js'
-import { authenticate, authorize } from '../middleware/auth.js'
+import { authenticate, requireManager } from '../middleware/auth.js'
 import { validate, createUserSchema, updateUserSchema } from '../validation.js'
 import { userService, AppError } from '../services/index.js'
 import type { ServiceContext } from '../services/index.js'
@@ -8,7 +7,7 @@ import type { ServiceContext } from '../services/index.js'
 const router = Router()
 
 function ctx(req: any): ServiceContext {
-  return { userId: req.user.id, roleId: req.user.role_id, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
+  return { userId: req.user.id, roleId: req.user.role_id, isManager: req.user.is_manager, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
 }
 
 function tryCatch(handler: (req: any, res: any) => any) {
@@ -35,22 +34,22 @@ router.get('/', authenticate, async (req: any, res: any) => {
   res.success(result.data)
 })
 
-router.post('/', authenticate, authorize(ROLES.ADMIN), validate(createUserSchema), tryCatch(async (req, res) => {
+router.post('/', authenticate, requireManager, validate(createUserSchema), tryCatch(async (req, res) => {
   const user = await userService.create(req.body, ctx(req))
   res.success(user, 201)
 }))
 
-router.put('/:id', authenticate, authorize(ROLES.ADMIN), validate(updateUserSchema), tryCatch(async (req, res) => {
+router.put('/:id', authenticate, requireManager, validate(updateUserSchema), tryCatch(async (req, res) => {
   const result = await userService.update(Number(req.params.id), req.body, ctx(req))
   res.success(result)
 }))
 
-router.delete('/:id', authenticate, authorize(ROLES.ADMIN), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, requireManager, tryCatch(async (req, res) => {
   const result = await userService.archive(Number(req.params.id), ctx(req))
   res.success(result)
 }))
 
-router.put('/:id/restore', authenticate, authorize(ROLES.ADMIN), tryCatch(async (req, res) => {
+router.put('/:id/restore', authenticate, requireManager, tryCatch(async (req, res) => {
   const result = await userService.restore(Number(req.params.id), ctx(req))
   res.success(result)
 }))

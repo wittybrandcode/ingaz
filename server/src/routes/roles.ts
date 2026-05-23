@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { ROLES } from '../constants.js'
-import { authenticate, authorize } from '../middleware/auth.js'
+import { authenticate, requireManager, authorizePermission } from '../middleware/auth.js'
 import { validate, createRoleSchema, updateRoleSchema, updateRolePermissionsSchema } from '../validation.js'
 import { roleService, AppError } from '../services/index.js'
 
@@ -21,28 +20,28 @@ function tryCatch(handler: (req: any, res: any) => any) {
   }
 }
 
-router.get('/', authenticate, authorize(ROLES.ADMIN), async (req: any, res: any) => {
+router.get('/', authenticate, authorizePermission('roles.view'), async (req: any, res: any) => {
   res.success(await roleService.list())
 })
 
-router.post('/', authenticate, authorize(ROLES.ADMIN), validate(createRoleSchema), tryCatch(async (req, res) => {
+router.post('/', authenticate, requireManager, validate(createRoleSchema), tryCatch(async (req, res) => {
   const role = await roleService.create(req.body)
   res.success(role, 201)
 }))
 
-router.put('/:id', authenticate, authorize(ROLES.ADMIN), validate(updateRoleSchema), tryCatch(async (req, res) => {
+router.put('/:id', authenticate, requireManager, validate(updateRoleSchema), tryCatch(async (req, res) => {
   res.success(await roleService.update(Number(req.params.id), req.body))
 }))
 
-router.delete('/:id', authenticate, authorize(ROLES.ADMIN), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, requireManager, tryCatch(async (req, res) => {
   res.success(await roleService.delete(Number(req.params.id)))
 }))
 
-router.get('/:id/permissions', authenticate, authorize(ROLES.ADMIN), async (req: any, res: any) => {
+router.get('/:id/permissions', authenticate, requireManager, async (req: any, res: any) => {
   res.success(await roleService.getPermissions(Number(req.params.id)))
 })
 
-router.put('/:id/permissions', authenticate, authorize(ROLES.ADMIN), validate(updateRolePermissionsSchema), tryCatch(async (req, res) => {
+router.put('/:id/permissions', authenticate, requireManager, validate(updateRolePermissionsSchema), tryCatch(async (req, res) => {
   res.success(await roleService.updatePermissions(Number(req.params.id), req.body.permissions))
 }))
 

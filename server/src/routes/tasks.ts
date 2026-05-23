@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { ROLES } from '../constants.js'
-import { authenticate, authorize, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
+import { authenticate, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
 import { validate, createTaskSchema, updateTaskSchema } from '../validation.js'
 import { taskService, AppError } from '../services/index.js'
 import type { ServiceContext } from '../services/index.js'
@@ -8,7 +7,7 @@ import type { ServiceContext } from '../services/index.js'
 const router = Router()
 
 function ctx(req: any): ServiceContext {
-  return { userId: req.user.id, roleId: req.user.role_id, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
+  return { userId: req.user.id, roleId: req.user.role_id, isManager: req.user.is_manager, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
 }
 
 function tryCatch(handler: (req: any, res: any) => any) {
@@ -49,12 +48,12 @@ router.post('/', authenticate, checkFrozen, requireCredit('canCreateTasks'), val
   res.success(task, 201)
 }))
 
-router.put('/:id', authenticate, authorize(ROLES.ADMIN, ROLES.DEPUTY), checkFrozen, validate(updateTaskSchema), tryCatch(async (req, res) => {
+router.put('/:id', authenticate, authorizePermission('tasks.edit'), checkFrozen, validate(updateTaskSchema), tryCatch(async (req, res) => {
   const task = await taskService.update(Number(req.params.id), req.body, ctx(req))
   res.success(task)
 }))
 
-router.delete('/:id', authenticate, authorize(ROLES.ADMIN, ROLES.DEPUTY), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, authorizePermission('tasks.delete'), tryCatch(async (req, res) => {
   const result = await taskService.archive(Number(req.params.id), ctx(req))
   res.success(result)
 }))

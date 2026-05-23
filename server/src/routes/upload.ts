@@ -30,7 +30,7 @@ const upload = multer({
 const router = Router()
 
 function ctx(req: any): ServiceContext {
-  return { userId: req.user.id, roleId: req.user.role_id, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
+  return { userId: req.user.id, roleId: req.user.role_id, isManager: req.user.is_manager, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
 }
 
 router.post('/', authenticate, upload.array('files', 10), validate(uploadSchema), async (req: any, res: any, next: any) => {

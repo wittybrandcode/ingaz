@@ -1,7 +1,5 @@
 export const ROLES = Object.freeze({
   ADMIN: 1,
-  DEPUTY: 2,
-  EMPLOYEE: 3,
 })
 
 export const PAGINATION = Object.freeze({

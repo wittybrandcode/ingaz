@@ -13,6 +13,7 @@ export type StatusConfig = Record<string, StatusConfigItem>
 
 export const SUBTASK_STATUS_CONFIG: StatusConfig = {
   open: { label: 'مفتوحة', icon: Clock, color: 'text-gray-700', bg: 'bg-gray-100' },
+  in_progress: { label: 'قيد التنفيذ', icon: Clock, color: 'text-blue-700', bg: 'bg-blue-100' },
   completed: { label: 'منفذة', icon: CheckCircle2, color: 'text-green-700', bg: 'bg-green-100' },
   cancelled: { label: 'ملغية', icon: XCircle, color: 'text-red-700', bg: 'bg-red-100' },
   deferred: { label: 'مؤجلة', icon: AlertCircle, color: 'text-yellow-700', bg: 'bg-yellow-100' },

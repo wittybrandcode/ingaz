@@ -33,7 +33,7 @@ vi.mock('../middleware/auth.js', () => ({
   clearFrozenCache: vi.fn(),
 }))
 
-const adminCtx: ServiceContext = { userId: 1, roleId: 1, userName: 'Admin' }
+const adminCtx: ServiceContext = { userId: 1, roleId: 1, isManager: 0, userName: 'Admin' }
 
 beforeEach(() => {
   mockIsProjectManager.mockReset()
@@ -75,7 +75,7 @@ describe('ProjectService', () => {
   it('getById returns project with tasks and members', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1, title: 'Test Project' })
     seedProjectMember(db, 10, 3)
 
@@ -144,7 +144,7 @@ describe('ProjectService', () => {
   it('getMembers returns members list', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedProjectMember(db, 10, 3)
 
@@ -158,7 +158,7 @@ describe('ProjectService', () => {
   it('addMember adds a member and removeMember removes them', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
 
     const service = new ProjectService(db)

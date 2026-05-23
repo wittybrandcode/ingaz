@@ -9,7 +9,6 @@ import { sanitizeHTML } from '../lib/sanitize'
 import type { Project, ProjectMember, Attachment, Task, Subtask } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/appStore'
-import { ROLES } from '../constants'
 
 interface ProjectSettingsModalProps {
   project: Project
@@ -32,7 +31,6 @@ export default function ProjectSettingsModal({ project, onClose, onUpdate, onDel
   const [members, setMembers] = useState<ProjectMember[]>([])
   const users = useAppStore(s => s.users)
   const loadUsers = useAppStore(s => s.loadUsers)
-  const roles = useAppStore(s => s.roles)
 
   useEffect(() => {
     api.get<Attachment[]>('/uploads', { params: { entity_type: 'project', entity_id: project.id } })
@@ -207,13 +205,10 @@ export default function ProjectSettingsModal({ project, onClose, onUpdate, onDel
             <AssigneePicker
               assignees={members.map(m => ({ user_id: m.user_id, name: m.name, avatar: m.avatar }))}
               availableUsers={users.filter(u => {
-                if (u.role_id !== ROLES.EMPLOYEE) return false
-                const role = roles.find(r => r.id === u.role_id)
-                const perms = role?.permissions ?? []
-                if (!perms.includes('subtasks.create')) return false
-                if (!perms.includes('subtasks.submit')) return false
-                if (!perms.includes('comments.create')) return false
-                return true
+                if (u.is_manager) return false
+                const p = u.permissions ?? []
+                const required = ['projects.view','projects.assign','tasks.assign','subtasks.assign','tasks.view','tasks.create','tasks.edit','tasks.delete','subtasks.view','subtasks.create','subtasks.edit','subtasks.delete','subtasks.submit','subtasks.complete','subtasks.cancel','subtasks.defer','users.view','roles.view','analytics.view','comments.create']
+                return required.every(perm => p.includes(perm))
               })}
               onAdd={async (userId) => {
                 await api.post(`/projects/${project.id}/members`, { user_id: userId })

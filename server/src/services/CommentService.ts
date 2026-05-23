@@ -1,5 +1,4 @@
 import { eq, and, sql } from 'drizzle-orm'
-import { ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
 import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees, getDb } from '../db/index.js'
@@ -30,23 +29,6 @@ export class CommentService extends BaseService {
   }
 
   async create(data: { subtask_id: number; content: string }, ctx: ServiceContext) {
-    if (ctx.roleId === ROLES.EMPLOYEE) {
-      const [sub] = await this.db
-        .select({
-          id: schema.subtasks.id,
-          assignedTo: schema.subtasks.assignedTo,
-          projectId: schema.tasks.projectId,
-        })
-        .from(schema.subtasks)
-        .innerJoin(schema.tasks, eq(schema.subtasks.taskId, schema.tasks.id))
-        .where(eq(schema.subtasks.id, data.subtask_id))
-        .limit(1)
-      if (!sub) throw new AppError(404, 'المهمة الفرعية غير موجودة')
-      if (sub.assignedTo !== ctx.userId && !(await isProjectManager(ctx.userId, sub.projectId))) {
-        throw new AppError(403, 'لا تملك صلاحية التعليق على هذه المهمة')
-      }
-    }
-
     const [comment] = await this.db.insert(schema.comments).values({
       subtaskId: data.subtask_id,
       userId: ctx.userId,
@@ -146,7 +128,7 @@ export class CommentService extends BaseService {
     if (!subtask) throw new AppError(404, 'المهمة الفرعية غير موجودة')
     if (subtask.status !== 'open') throw new AppError(400, 'يمكن ترشيح فائز في المهام المفتوحة فقط')
 
-    if (ctx.roleId !== ROLES.ADMIN && ctx.roleId !== ROLES.DEPUTY) {
+    if (!ctx.isManager) {
       const isTaskAssignee = await this.db
         .select()
         .from(schema.taskAssignees)

@@ -2,68 +2,78 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import { eq, inArray } from 'drizzle-orm'
 import { getDb, closePool, schema } from './db/index.js'
-import { ROLES } from './constants.js'
+
+const PERMISSIONS: [key: string, name: string, group: string, sort: number][] = [
+  ['projects.view', 'عرض المشاريع', 'المشاريع', 1],
+  ['projects.create', 'إنشاء المشاريع', 'المشاريع', 2],
+  ['projects.edit', 'تعديل المشاريع', 'المشاريع', 3],
+  ['projects.delete', 'حذف المشاريع', 'المشاريع', 4],
+  ['projects.archive', 'أرشفة المشاريع', 'المشاريع', 5],
+  ['projects.assign', 'تكليف أعضاء المشروع', 'التكليف', 1],
+  ['tasks.view', 'عرض المهام', 'المهام', 1],
+  ['tasks.create', 'إنشاء المهام', 'المهام', 2],
+  ['tasks.edit', 'تعديل المهام', 'المهام', 3],
+  ['tasks.delete', 'حذف المهام', 'المهام', 4],
+  ['tasks.assign', 'تكليف المسؤولين عن المهام', 'التكليف', 2],
+  ['subtasks.view', 'عرض المهام الفرعية', 'المهام الفرعية', 1],
+  ['subtasks.create', 'إنشاء المهام الفرعية', 'المهام الفرعية', 2],
+  ['subtasks.edit', 'تعديل المهام الفرعية', 'المهام الفرعية', 3],
+  ['subtasks.delete', 'حذف المهام الفرعية', 'المهام الفرعية', 4],
+  ['subtasks.assign', 'تعيين المهام الفرعية', 'التكليف', 3],
+  ['subtasks.submit', 'تسليم مهمة فرعية', 'المهام الفرعية', 6],
+  ['subtasks.complete', 'ترشيح فائز في مهمة فرعية', 'المهام الفرعية', 5],
+  ['subtasks.cancel', 'إلغاء مهمة فرعية', 'المهام الفرعية', 8],
+  ['subtasks.defer', 'تأجيل مهمة فرعية', 'المهام الفرعية', 9],
+  ['users.view', 'عرض المستخدمين', 'المستخدمين', 1],
+  ['users.create', 'إنشاء المستخدمين', 'المستخدمين', 2],
+  ['users.edit', 'تعديل المستخدمين', 'المستخدمين', 3],
+  ['users.delete', 'حذف المستخدمين', 'المستخدمين', 4],
+  ['roles.view', 'عرض الأدوار', 'الأدوار والصلاحيات', 1],
+  ['roles.create', 'إنشاء الأدوار', 'الأدوار والصلاحيات', 2],
+  ['roles.edit', 'تعديل الأدوار', 'الأدوار والصلاحيات', 3],
+  ['roles.delete', 'حذف الأدوار', 'الأدوار والصلاحيات', 4],
+  ['analytics.view', 'عرض التقارير', 'التقارير', 1],
+  ['comments.create', 'إضافة تعليقات', 'التعليقات', 1],
+]
 
 async function main() {
   const db = getDb()
 
-  await db.insert(schema.roles).values([
-    { id: ROLES.ADMIN, name: 'Admin' },
-    { id: ROLES.DEPUTY, name: 'Deputy' },
-    { id: ROLES.EMPLOYEE, name: 'Employee' },
-  ]).onConflictDoNothing()
-  console.log('Seeded: roles (Admin, Deputy, Employee)')
+  // Transition cleanup: remove old role_permissions for Admin/Deputy/Employee
+  const oldRoleNames = ['Admin', 'Deputy', 'Employee']
+  const oldRoles = await db.select({ id: schema.roles.id, name: schema.roles.name }).from(schema.roles).where(inArray(schema.roles.name, oldRoleNames))
+  for (const r of oldRoles) {
+    await db.delete(schema.rolePermissions).where(eq(schema.rolePermissions.roleId, r.id))
+    await db.delete(schema.roles).where(eq(schema.roles.id, r.id))
+  }
+  if (oldRoles.length > 0) console.log(`Cleaned up old roles: ${oldRoles.map((r: { name: string }) => r.name).join(', ')}`)
 
-  const existing = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, 'admin@ingaz.com')).limit(1)
-  if (existing.length === 0) {
-    await db.insert(schema.users).values([
-      { name: 'المدير العام', email: 'admin@ingaz.com', password: await bcrypt.hash('admin123', 10), roleId: ROLES.ADMIN },
-      { name: 'نائب المدير', email: 'deputy@ingaz.com', password: await bcrypt.hash('deputy123', 10), roleId: ROLES.DEPUTY },
-      { name: 'موظف', email: 'emp@ingaz.com', password: await bcrypt.hash('emp123', 10), roleId: ROLES.EMPLOYEE },
-    ])
-    console.log('Seeded: admin@ingaz.com / admin123')
-    console.log('Seeded: deputy@ingaz.com / deputy123')
-    console.log('Seeded: emp@ingaz.com / emp123')
+  // Set admin@ingaz.com as manager, remove role
+  const existingAdmin = await db.select({ id: schema.users.id, roleId: schema.users.roleId }).from(schema.users).where(eq(schema.users.email, 'admin@ingaz.com')).limit(1)
+  if (existingAdmin.length > 0) {
+    await db.update(schema.users).set({ isManager: 1, roleId: null }).where(eq(schema.users.email, 'admin@ingaz.com'))
+    console.log('Updated: admin@ingaz.com → manager')
   } else {
-    console.log('Database already has users.')
+    await db.insert(schema.users).values({
+      name: 'المدير العام',
+      email: 'admin@ingaz.com',
+      password: await bcrypt.hash('admin123', 10),
+      isManager: 1,
+    })
+    console.log('Seeded: admin@ingaz.com / admin123 (manager)')
   }
 
-  const permissions = [
-    ['projects.view', 'عرض المشاريع', 'المشاريع', 1],
-    ['projects.create', 'إنشاء المشاريع', 'المشاريع', 2],
-    ['projects.edit', 'تعديل المشاريع', 'المشاريع', 3],
-    ['projects.delete', 'حذف المشاريع', 'المشاريع', 4],
-    ['projects.archive', 'أرشفة المشاريع', 'المشاريع', 5],
-    ['projects.assign', 'تكليف أعضاء المشروع', 'التكليف', 1],
-    ['tasks.view', 'عرض المهام', 'المهام', 1],
-    ['tasks.create', 'إنشاء المهام', 'المهام', 2],
-    ['tasks.edit', 'تعديل المهام', 'المهام', 3],
-    ['tasks.delete', 'حذف المهام', 'المهام', 4],
-    ['tasks.assign', 'تكليف المسؤولين عن المهام', 'التكليف', 2],
-    ['subtasks.view', 'عرض المهام الفرعية', 'المهام الفرعية', 1],
-    ['subtasks.create', 'إنشاء المهام الفرعية', 'المهام الفرعية', 2],
-    ['subtasks.edit', 'تعديل المهام الفرعية', 'المهام الفرعية', 3],
-    ['subtasks.delete', 'حذف المهام الفرعية', 'المهام الفرعية', 4],
-    ['subtasks.assign', 'تعيين المهام الفرعية', 'التكليف', 3],
-    ['subtasks.complete', 'ترشيح فائز في مهمة فرعية', 'المهام الفرعية', 5],
-    ['subtasks.cancel', 'إلغاء مهمة فرعية', 'المهام الفرعية', 8],
-    ['subtasks.defer', 'تأجيل مهمة فرعية', 'المهام الفرعية', 9],
-    ['users.view', 'عرض المستخدمين', 'المستخدمين', 1],
-    ['users.create', 'إنشاء المستخدمين', 'المستخدمين', 2],
-    ['users.edit', 'تعديل المستخدمين', 'المستخدمين', 3],
-    ['users.delete', 'حذف المستخدمين', 'المستخدمين', 4],
-    ['roles.view', 'عرض الأدوار', 'الأدوار والصلاحيات', 1],
-    ['roles.create', 'إنشاء الأدوار', 'الأدوار والصلاحيات', 2],
-    ['roles.edit', 'تعديل الأدوار', 'الأدوار والصلاحيات', 3],
-    ['roles.delete', 'حذف الأدوار', 'الأدوار والصلاحيات', 4],
-    ['analytics.view', 'عرض التقارير', 'التقارير', 1],
-    ['comments.create', 'إضافة تعليقات', 'التعليقات', 1],
-  ]
+  // Remove deputy@ingaz.com (no longer exists in new system)
+  await db.delete(schema.users).where(eq(schema.users.email, 'deputy@ingaz.com'))
+  console.log('Removed: deputy@ingaz.com')
 
-  for (const [key, name, group, sort] of permissions) {
+  // Seed permissions
+  for (const [key, name, group, sort] of PERMISSIONS) {
     await db.insert(schema.permissions).values({ key, name, groupName: group, sortOrder: sort }).onConflictDoNothing()
   }
+  console.log(`Seeded: ${PERMISSIONS.length} permissions`)
 
+  // Seed notification types
   const notifTypes = [
     ['project_created', 'مشاريع', 'إنشاء مشروع', 'عند إنشاء مشروع جديد', 1],
     ['project_updated', 'مشاريع', 'تعديل مشروع', 'عند تعديل مشروع', 1],
@@ -102,25 +112,77 @@ async function main() {
   for (const [typeKey, typeGroup, name, description, defaultEnabled] of notifTypes) {
     await db.insert(schema.notificationTypes).values({ typeKey, typeGroup, name, description, defaultEnabled }).onConflictDoNothing()
   }
+  console.log(`Seeded: ${notifTypes.length} notification types`)
 
+  // Seed restriction levels
+  const levels = [
+    { name: 'excellent', nameAr: 'ممتاز', minScore: 8, color: '#22c55e', icon: 'CheckCircle2', showBanner: 0, canLogin: 1, canCreateProjects: 1, canCreateTasks: 1, canEdit: 1, canAssign: 1, canSubmit: 1, canComment: 1, sortOrder: 1 },
+    { name: 'warning', nameAr: 'تنبيه', minScore: 5, color: '#eab308', icon: 'AlertTriangle', showBanner: 1, canLogin: 1, canCreateProjects: 1, canCreateTasks: 1, canEdit: 1, canAssign: 1, canSubmit: 1, canComment: 1, sortOrder: 2 },
+    { name: 'restricted', nameAr: 'مقيد', minScore: 3, color: '#f97316', icon: 'Lock', showBanner: 1, canLogin: 1, canCreateProjects: 0, canCreateTasks: 0, canEdit: 0, canAssign: 0, canSubmit: 1, canComment: 1, sortOrder: 3 },
+    { name: 'frozen', nameAr: 'مجمد', minScore: 0, color: '#ef4444', icon: 'Snowflake', showBanner: 0, canLogin: 0, canCreateProjects: 0, canCreateTasks: 0, canEdit: 0, canAssign: 0, canSubmit: 0, canComment: 0, sortOrder: 4 },
+  ]
+  for (const l of levels) {
+    await db.insert(schema.restrictionLevels).values(l).onConflictDoNothing()
+  }
+  console.log(`Seeded: ${levels.length} restriction levels`)
+
+  // Seed warning types
+  const wtData = [
+    { name: 'تأخير عن العمل', description: 'التأخر عن وقت الدوام أو الحضور متأخراً', points: 1, isActive: 1 },
+    { name: 'تقصير في المهام', description: 'عدم إنجاز المهام المسندة بالجودة المطلوبة', points: 2, isActive: 1 },
+    { name: 'عدم التزام بالمواعيد', description: 'تجاوز المواعيد النهائية للمهام', points: 2, isActive: 1 },
+    { name: 'إهمال متكرر', description: 'تكرار الإهمال في أداء المهام', points: 3, isActive: 1 },
+    { name: 'مخالفة تعليمات العمل', description: 'عدم اتباع الأنظمة والتعليمات', points: 4, isActive: 1 },
+    { name: 'غياب بدون إذن', description: 'الغياب عن العمل دون تصريح مسبق', points: 3, isActive: 1 },
+    { name: 'تسليم أعمال غير مكتملة', description: 'تسليم مهام غير كاملة أو ناقصة', points: 1, isActive: 1 },
+    { name: 'سلوك غير لائق', description: 'سلوك غير مهني مع الزملاء أو المدراء', points: 5, isActive: 1 },
+  ]
+  for (const w of wtData) {
+    await db.insert(schema.warningTypes).values(w).onConflictDoNothing()
+  }
+  console.log(`Seeded: ${wtData.length} warning types`)
+
+  // Create 2 default roles
   const allPerms = await db.select({ id: schema.permissions.id, key: schema.permissions.key }).from(schema.permissions)
+  const permMap = new Map(allPerms.map((p: { key: string; id: number }) => [p.key, p.id]))
 
-  for (const p of allPerms) {
-    await db.insert(schema.rolePermissions).values({ roleId: ROLES.ADMIN, permissionId: p.id }).onConflictDoNothing()
+  // Role 1: مشارك (Participant) — basic view + create
+  const participantRole = await db.insert(schema.roles).values({ name: 'مشارك' }).onConflictDoNothing().returning()
+  const participantRoleId = participantRole.length > 0 ? participantRole[0].id : (await db.select({ id: schema.roles.id }).from(schema.roles).where(eq(schema.roles.name, 'مشارك')).limit(1))[0].id
+
+  const participantPerms = ['projects.view', 'tasks.view', 'subtasks.view', 'tasks.create', 'tasks.edit', 'subtasks.create', 'subtasks.submit', 'comments.create']
+  for (const key of participantPerms) {
+    const pid = permMap.get(key)
+    if (pid) await db.insert(schema.rolePermissions).values({ roleId: participantRoleId, permissionId: pid }).onConflictDoNothing()
   }
+  console.log('Seeded: role "مشارك"')
 
-  const deputyExcluded = ['users.', 'roles.', 'projects.delete', 'projects.archive']
+  // Role 2: مساهم (Contributor) — most except admin-level
+  const contributorRole = await db.insert(schema.roles).values({ name: 'مساهم' }).onConflictDoNothing().returning()
+  const contributorRoleId = contributorRole.length > 0 ? contributorRole[0].id : (await db.select({ id: schema.roles.id }).from(schema.roles).where(eq(schema.roles.name, 'مساهم')).limit(1))[0].id
+
+  const contributorPerms = ['users.view', 'roles.view', 'projects.delete', 'projects.archive', 'users.delete', 'roles.delete', 'users.create', 'roles.create']
   for (const p of allPerms) {
-    if (!deputyExcluded.some(ex => p.key.startsWith(ex))) {
-      await db.insert(schema.rolePermissions).values({ roleId: ROLES.DEPUTY, permissionId: p.id }).onConflictDoNothing()
+    if (!contributorPerms.some(ex => p.key === ex)) {
+      await db.insert(schema.rolePermissions).values({ roleId: contributorRoleId, permissionId: p.id }).onConflictDoNothing()
     }
   }
+  console.log('Seeded: role "مساهم"')
 
-  const employeeOnly = ['projects.view', 'tasks.view', 'subtasks.view', 'tasks.create', 'tasks.edit', 'subtasks.create', 'subtasks.submit', 'comments.create']
-  for (const p of allPerms) {
-    if (employeeOnly.some(k => p.key === k)) {
-      await db.insert(schema.rolePermissions).values({ roleId: ROLES.EMPLOYEE, permissionId: p.id }).onConflictDoNothing()
-    }
+  // Create/update test user with مشارك role
+  const existingEmp = await db.select({ id: schema.users.id }).from(schema.users).where(eq(schema.users.email, 'emp@ingaz.com')).limit(1)
+  if (existingEmp.length === 0) {
+    await db.insert(schema.users).values({
+      name: 'موظف اختبار',
+      email: 'emp@ingaz.com',
+      password: await bcrypt.hash('emp123', 10),
+      roleId: participantRoleId,
+      isManager: 0,
+    })
+    console.log('Seeded: emp@ingaz.com / emp123 (role: مشارك)')
+  } else {
+    await db.update(schema.users).set({ roleId: participantRoleId, isManager: 0 }).where(eq(schema.users.email, 'emp@ingaz.com'))
+    console.log('Updated: emp@ingaz.com → role: مشارك')
   }
 
   console.log('Seed complete.')

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import { ROLES } from '../constants'
+
 import { Paperclip, File, XCircle, Loader2 } from 'lucide-react'
 import FilePreview, { type FileItem } from './FilePreview'
 
@@ -101,7 +101,7 @@ export default function FileUpload({ entityType, entityId, onAccept, onReject, o
                   </div>
                 </div>
               )}
-              {(user?.id === f.uploaded_by || user?.role_id === ROLES.ADMIN) && (
+              {(user?.id === f.uploaded_by || user?.is_manager) && (
                 confirmDeleteId === f.id ? (
                   <div className="absolute inset-0 flex items-center justify-center gap-1 bg-white/90 z-20">
                     <button onClick={e => { e.stopPropagation(); removeFile(f.id) }} disabled={deleting === f.id}

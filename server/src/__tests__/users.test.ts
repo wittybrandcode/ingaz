@@ -11,6 +11,7 @@ vi.mock('../db/index.js', async () => {
   return {
     schema,
     addActivityLog: mockAddActivityLog,
+    getUserPermissions: vi.fn().mockResolvedValue([]),
     getDb: vi.fn(),
   }
 })
@@ -32,7 +33,7 @@ vi.mock('../middleware/auth.js', () => ({
   clearFrozenCache: vi.fn(),
 }))
 
-const adminCtx: ServiceContext = { userId: 1, roleId: 1, userName: 'Admin' }
+const adminCtx: ServiceContext = { userId: 1, roleId: 1, isManager: 0, userName: 'Admin' }
 
 beforeEach(() => {
   mockAddActivityLog.mockReset()
@@ -48,7 +49,7 @@ describe('UserService', () => {
   it('list returns non-archived users', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3, name: 'Active User' })
+    seedUser(db, { id: 3, role_id: 2, name: 'Active User' })
 
     const service = new UserService(db)
     const result = await service.list(1, 10)
@@ -60,7 +61,7 @@ describe('UserService', () => {
   it('list excludes archived users by default', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3, status: 'archived' })
+    seedUser(db, { id: 3, role_id: 2, status: 'archived' })
 
     const service = new UserService(db)
     const result = await service.list(1, 10)
@@ -71,7 +72,7 @@ describe('UserService', () => {
   it('list includes archived users when includeArchived is true', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3, status: 'archived' })
+    seedUser(db, { id: 3, role_id: 2, status: 'archived' })
 
     const service = new UserService(db)
     const result = await service.list(1, 10, true)
@@ -85,7 +86,7 @@ describe('UserService', () => {
 
     const service = new UserService(db)
     const user = await service.create(
-      { name: 'New User', email: 'new@test.com', password: 'secret123', roleId: 3 },
+      { name: 'New User', email: 'new@test.com', password: 'secret123', roleId: 2 },
       adminCtx,
     )
 
@@ -98,11 +99,11 @@ describe('UserService', () => {
   it('create throws 409 for duplicate email', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3, email: 'dup@test.com' })
+    seedUser(db, { id: 3, role_id: 2, email: 'dup@test.com' })
 
     const service = new UserService(db)
     await expect(
-      service.create({ name: 'Dup', email: 'dup@test.com', password: 'secret123', roleId: 3 }, adminCtx),
+      service.create({ name: 'Dup', email: 'dup@test.com', password: 'secret123', roleId: 2 }, adminCtx),
     ).rejects.toThrow('هذا البريد غير متاح')
   })
 
@@ -127,7 +128,7 @@ describe('UserService', () => {
   it('archive archives a user and restore restores them', async () => {
     const db = createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
 
     const service = new UserService(db)
     const archiveResult = await service.archive(3, adminCtx)
@@ -148,7 +149,7 @@ describe('UserService', () => {
     seedBase(db)
 
     const service = new UserService(db)
-    const ownCtx: ServiceContext = { userId: 1, roleId: 1, userName: 'Admin' }
+    const ownCtx: ServiceContext = { userId: 1, roleId: 1, isManager: 0, userName: 'Admin' }
 
     await expect(service.archive(1, ownCtx)).rejects.toThrow('لا يمكنك أرشفة حسابك الشخصي')
   })

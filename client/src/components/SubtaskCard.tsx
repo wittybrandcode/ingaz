@@ -14,11 +14,14 @@ interface SubtaskCardProps {
 }
 
 const statusBar: Record<string, string> = {
-  pending:     'bg-gray-300',
+  open:        'bg-gray-300',
   in_progress: 'bg-amber-400',
   submitted:   'bg-purple-400',
   approved:    'bg-green-400',
   rejected:    'bg-red-400',
+  completed:   'bg-emerald-500',
+  cancelled:   'bg-gray-400',
+  deferred:    'bg-blue-400',
 }
 
 export default function SubtaskCard({ subtask, onSelect, onView, index }: SubtaskCardProps) {
@@ -83,7 +86,7 @@ export default function SubtaskCard({ subtask, onSelect, onView, index }: Subtas
                   className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs border-none cursor-pointer transition-all hover:bg-purple-50 text-right bg-transparent text-gray-700">
                   <Pencil className="w-4 h-4 text-purple-500" /> تعديل
                 </button>
-                <button onClick={async () => { setMenuOpen(false); if (!confirm('هل أنت متأكد من تجميد هذه المهمة الفرعية؟')) return; try { await api.put(`/subtasks/${subtask.id}`, { status: 'pending' }); toast('تم تجميد المهمة') } catch { toast('فشل التجميد', 'error') } }}
+                <button onClick={async () => { setMenuOpen(false); if (!confirm('هل أنت متأكد من تجميد هذه المهمة الفرعية؟')) return; try { await api.put(`/subtasks/${subtask.id}`, { status: 'deferred' }); toast('تم تجميد المهمة') } catch { toast('فشل التجميد', 'error') } }}
                   className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-xs border-none cursor-pointer transition-all hover:bg-blue-50 text-right bg-transparent text-gray-700">
                   <Snowflake className="w-4 h-4 text-blue-500" /> تجميد
                 </button>

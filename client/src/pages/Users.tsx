@@ -1,9 +1,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import api from '../lib/api'
 import { UserPlus, Trash2, RotateCcw, AlertTriangle, Send, X, Loader2, Search } from 'lucide-react'
-import Avatar from '../components/Avatar'
+import ProfileAvatar, { assignBadge, warningsBadge } from '../components/ProfileAvatar'
 import { useAppStore } from '../store/appStore'
-import { ROLES } from '../constants'
 import type { User } from '../types'
 
 export default function Users() {
@@ -36,6 +35,7 @@ export default function Users() {
   const [restoring, setRestoring] = useState<number | null>(null)
 
   const filteredUsers = useMemo(() => users.filter(u => {
+    if (u.is_manager) return false
     if (searchQuery && !u.name.toLowerCase().includes(searchQuery.toLowerCase()) && !u.email.toLowerCase().includes(searchQuery.toLowerCase())) return false
     if (roleFilter !== '' && u.role_id !== roleFilter) return false
     if (statusFilter && u.status !== statusFilter) return false
@@ -75,20 +75,20 @@ export default function Users() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || !email.trim() || !password || !roleId) return
+    if (!name.trim() || !email.trim() || !password || roleId === '') return
     setCreating(true)
     try {
-      const { data: newUser } = await api.post<User>('/users', { name, email, password, role_id: roleId })
+      const { data: newUser } = await api.post<User>('/users', { name, email, password, roleId })
       setName(''); setEmail(''); setPassword(''); setRoleId(''); setShowForm(false)
       updateUsers(prev => [newUser, ...prev])
     } catch (e) { console.error('createUser failed', e) } finally { setCreating(false) }
   }
 
   const update = async (id: number) => {
-    if (!editRole) return
+    if (editRole === '') return
     setSaving(id)
     try {
-      await api.put(`/users/${id}`, { name: editName, email: editEmail, role_id: editRole, status: editStatus })
+      await api.put(`/users/${id}`, { name: editName, email: editEmail, roleId: editRole, status: editStatus })
       updateUsers(prev => prev.map(u => u.id === id ? { ...u, name: editName, email: editEmail, role_id: editRole, status: editStatus } : u))
       setEditing(null)
     } catch (e) { console.error('updateUser failed', e) } finally { setSaving(null) }
@@ -142,7 +142,7 @@ export default function Users() {
             <input value={name} onChange={e => setName(e.target.value)} placeholder="الاسم" className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" required />
             <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="البريد الإلكتروني" className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" required />
             <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="كلمة المرور" className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" required />
-            <select value={roleId} onChange={e => setRoleId(Number(e.target.value))} className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            <select value={roleId} onChange={e => setRoleId(e.target.value ? Number(e.target.value) : '')} className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
               <option value="">اختر الدور...</option>
               {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select>
@@ -181,10 +181,14 @@ export default function Users() {
                     <td className="p-3"><input value={editName} onChange={e => setEditName(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm w-full" /></td>
                     <td className="p-3"><input value={editEmail} onChange={e => setEditEmail(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm w-full" /></td>
                     <td className="p-3">
-                      <select value={editRole} onChange={e => setEditRole(Number(e.target.value))} className="px-2 py-1 border border-gray-300 rounded text-sm">
+                      {u.is_manager ? (
+                        <span className="px-2 py-1 text-xs text-gray-400">مدير (غير قابل للتعديل)</span>
+                      ) : (
+                      <select value={editRole} onChange={e => setEditRole(e.target.value ? Number(e.target.value) : '')} className="px-2 py-1 border border-gray-300 rounded text-sm">
                         <option value="">اختر الدور...</option>
                         {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                       </select>
+                      )}
                     </td>
                     <td className="p-3">
                       <select value={editStatus} onChange={e => setEditStatus(e.target.value)} className="px-2 py-1 border border-gray-300 rounded text-sm">
@@ -202,7 +206,7 @@ export default function Users() {
                   <>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <Avatar name={u.name} avatar={u.avatar} size="sm" />
+                        <ProfileAvatar name={u.name} avatar={u.avatar} size="sm" badges={[assignBadge(u.permissions), warningsBadge(u.warnings ?? 0)]} />
                         <span className="font-medium text-gray-900">{u.name}</span>
                       </div>
                     </td>
@@ -227,7 +231,7 @@ export default function Users() {
                       ) : '-'}
                     </td>
                     <td className="p-3 text-left">
-                      <button onClick={() => { setEditing(u.id); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role_id); setEditStatus(u.status) }}
+                      <button onClick={() => { setEditing(u.id); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role_id ?? ''); setEditStatus(u.status) }}
                         className="p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600 ml-1">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
@@ -237,7 +241,7 @@ export default function Users() {
                         </button>
                       ) : (
                         <>
-                          {u.role_id !== ROLES.ADMIN && (
+                          {!u.is_manager && (
                             <button onClick={() => setWarningTarget(u)} className="p-1 hover:bg-gray-100 rounded text-red-400 hover:text-red-600 ml-1" title="إصدار إنذار">
                               <AlertTriangle className="w-4 h-4" />
                             </button>
@@ -272,7 +276,7 @@ export default function Users() {
 
             <form onSubmit={handleIssueWarning} className="p-5 space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                <Avatar name={warningTarget.name} avatar={warningTarget.avatar} size="md" />
+                <ProfileAvatar name={warningTarget.name} avatar={warningTarget.avatar} size="md" />
                 <div>
                   <p className="font-semibold text-gray-900">{warningTarget.name}</p>
                   <p className="text-xs text-gray-500">{warningTarget.email}</p>

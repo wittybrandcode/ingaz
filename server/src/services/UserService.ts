@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs'
-import { eq, not, count, sql } from 'drizzle-orm'
+import { and, eq, not, count, sql, inArray } from 'drizzle-orm'
 import { PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog } from '../db/index.js'
+import { schema, addActivityLog, getUserPermissions } from '../db/index.js'
 import { camelToSnake } from '../lib/case-transform.js'
 import { setDefaultPrefs } from '../notify.js'
 import { NotificationService } from './NotificationService.js'
@@ -14,9 +14,9 @@ export class UserService extends BaseService {
     pageSize = Math.min(PAGINATION.MAX_PAGE_SIZE, Math.max(1, pageSize || PAGINATION.DEFAULT_PAGE_SIZE))
     const offset = (page - 1) * pageSize
 
-    let whereClause: any = undefined
+    let whereClause: any = not(eq(schema.users.isManager, 1))
     if (!includeArchived) {
-      whereClause = not(eq(schema.users.status, 'archived'))
+      whereClause = and(whereClause, not(eq(schema.users.status, 'archived')))
     }
 
     const [totalRow] = await this.db
@@ -31,18 +31,33 @@ export class UserService extends BaseService {
         name: schema.users.name,
         email: schema.users.email,
         roleId: schema.users.roleId,
+        isManager: schema.users.isManager,
         avatar: schema.users.avatar,
         status: schema.users.status,
         roleName: schema.roles.name,
       })
       .from(schema.users)
-      .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
+      .leftJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(whereClause)
       .orderBy(sql`${schema.users.createdAt} DESC`)
       .limit(pageSize)
       .offset(offset)
 
-    return { data: camelToSnake(users), total, pages: Math.ceil(total / pageSize), page, pageSize }
+    const userIds = users.map((u: any) => u.id)
+    const warningRows = userIds.length > 0 ? await this.db
+      .select({ userId: schema.warnings.userId, count: count() })
+      .from(schema.warnings)
+      .where(inArray(schema.warnings.userId, userIds))
+      .groupBy(schema.warnings.userId) : []
+    const warningMap = new Map(warningRows.map((w: any) => [w.userId, w.count]))
+
+    const usersWithPerms = await Promise.all(users.map(async (u: any) => ({
+      ...u,
+      permissions: await getUserPermissions(u.id),
+      warnings: warningMap.get(u.id) ?? 0,
+    })))
+
+    return { data: camelToSnake(usersWithPerms), total, pages: Math.ceil(total / pageSize), page, pageSize }
   }
 
   async create(data: { name: string; email: string; password: string; roleId: number; status?: string }, ctx: ServiceContext) {

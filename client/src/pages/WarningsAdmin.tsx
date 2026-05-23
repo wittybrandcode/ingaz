@@ -5,7 +5,7 @@ import { AlertTriangle, Snowflake, Unlock, Loader2, Search, MessageSquare, Check
 import Avatar from '../components/Avatar'
 import { useToast } from '../components/Toast'
 import { useAppStore } from '../store/appStore'
-import { ROLES } from '../constants'
+
 import type { Warning, WarningType } from '../types'
 import { WARNING_STATUS_CONFIG } from '../statusConfig'
 
@@ -135,7 +135,7 @@ export default function WarningsAdmin() {
             <select value={selectedUser} onChange={e => setSelectedUser(e.target.value)}
               className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-red-500" required>
               <option value="">اختر الموظف...</option>
-              {users.filter(u => u.role_id !== ROLES.ADMIN).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              {users.filter(u => !u.is_manager).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
             </select>
             <select value={selectedType} onChange={e => { setSelectedType(e.target.value); const t = warningTypes.find(wt => wt.id === Number(e.target.value)); if (t) setReason(t.name); }}
               className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">

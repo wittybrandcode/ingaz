@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, varchar, uniqueIndex, index, check } from 'drizzle-orm/pg-core'
+import { pgTable, serial, integer, text, timestamp, varchar, uniqueIndex, index, check, jsonb } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const roles = pgTable('roles', {
@@ -12,6 +12,7 @@ export const users = pgTable('users', {
   email: text('email').notNull().unique(),
   password: text('password').notNull(),
   roleId: integer('role_id').references(() => roles.id, { onDelete: 'set null' }),
+  isManager: integer('is_manager').default(0),
   avatar: text('avatar'),
   status: text('status').default('active'),
   creditScore: integer('credit_score').default(10),
@@ -267,4 +268,21 @@ export const deadlineReminders = pgTable('deadline_reminders', {
   uniqueIndex('uq_deadline_reminders').on(table.subtaskId, table.reminderType),
   check('deadline_reminders_type_check',
     sql`${table.reminderType} IN ('24h', '6h', 'overdue')`),
+])
+
+export const backgroundJobs = pgTable('background_jobs', {
+  id: serial('id').primaryKey(),
+  jobType: text('job_type').notNull().unique(),
+  status: text('status').notNull().default('idle'),
+  lastRunAt: timestamp('last_run_at'),
+  nextRunAt: timestamp('next_run_at').notNull(),
+  intervalMs: integer('interval_ms').notNull(),
+  retryCount: integer('retry_count').default(0),
+  maxRetries: integer('max_retries').default(3),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, table => [
+  index('idx_bg_jobs_status').on(table.status),
+  index('idx_bg_jobs_next_run').on(table.nextRunAt),
 ])

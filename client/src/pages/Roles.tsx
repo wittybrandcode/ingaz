@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import api from '../lib/api'
-import { Plus, Trash2, Save, X, Shield, Edit3, Check, ChevronUp, ChevronDown, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Save, X, Shield, Edit3, Check, ChevronUp, ChevronDown, Loader2, Pin } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
-import { ROLES } from '../constants'
+import { ASSIGN_REQUIRED_PERMS } from '../constants'
+
 import type { Role, Permission } from '../types'
 type GroupedPermissions = Record<string, Permission[]>
 
@@ -73,7 +74,7 @@ export default function Roles() {
     } finally { setSaving(false) }
   }
 
-  const defaultRoles = [ROLES.ADMIN, ROLES.DEPUTY, ROLES.EMPLOYEE]
+  const defaultRoles: number[] = []
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -121,16 +122,25 @@ export default function Roles() {
                     ) : (
                       <>
                         <h3 className="font-semibold text-gray-900">{role.name}</h3>
-                        {role.id === ROLES.ADMIN ? (
-                          <p className="text-xs text-green-600 font-medium">جميع الصلاحيات</p>
-                        ) : (
-                          <p className="text-xs text-gray-400">{(role.permissions || []).length} صلاحية</p>
-                        )}
+                        <p className="text-xs text-gray-400">{(role.permissions || []).length} صلاحية</p>
+                        {(() => {
+                          const perms = role.permissions || []
+                          const ok = ASSIGN_REQUIRED_PERMS.every(p => perms.includes(p))
+                          return ok ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-50 text-green-700 border border-green-200 mt-1">
+                              <Check className="w-3 h-3" /> مؤهل للتكليف
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-50 text-gray-400 border border-gray-200 mt-1">
+                              غير مؤهل للتكليف
+                            </span>
+                          )
+                        })()}
                       </>
                     )}
                   </div>
                 </div>
-                {!defaultRoles.includes(role.id as 1 | 2 | 3) && editingName !== role.id && (
+                {!defaultRoles.includes(role.id as 1) && editingName !== role.id && (
                   <div className="flex gap-1">
                     <button onClick={() => { setEditingName(role.id); setEditName(role.name) }} className="p-1.5 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600">
                       <Edit3 className="w-3.5 h-3.5" />
@@ -142,14 +152,12 @@ export default function Roles() {
                 )}
               </div>
             </div>
-            {role.id !== ROLES.ADMIN && (
-              <div className="p-3">
-                <button onClick={() => openPermManager(role)} title="إدارة الصلاحيات"
-                  className="p-2 rounded-full bg-gray-50 text-gray-700 hover:bg-gray-100">
-                  <Shield className="w-4 h-4" />
-                </button>
-              </div>
-            )}
+            <div className="p-3">
+              <button onClick={() => openPermManager(role)} title="إدارة الصلاحيات"
+                className="p-2 rounded-full bg-gray-50 text-gray-700 hover:bg-gray-100">
+                <Shield className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -166,6 +174,23 @@ export default function Roles() {
                 <div className="min-w-0">
                   <h2 className="font-bold text-gray-900 text-lg truncate">{managingPerms.name}</h2>
                   <p className="text-xs text-gray-500">{selectedPerms.length} صلاحية محددة من أصل {Object.values(permsGrouped).flat().length}</p>
+                  {(() => {
+                    const assignCount = ASSIGN_REQUIRED_PERMS.filter(p => selectedPerms.includes(p)).length
+                    const qualified = assignCount === ASSIGN_REQUIRED_PERMS.length
+                    return (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className={qualified ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                            {qualified ? '✅ مؤهل للتكليف' : `صلاحيات التكليف: ${assignCount}/${ASSIGN_REQUIRED_PERMS.length}`}
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full transition-all ${qualified ? 'bg-green-500' : 'bg-indigo-500'}`}
+                            style={{ width: `${(assignCount / ASSIGN_REQUIRED_PERMS.length) * 100}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
               <button onClick={() => setManagingPerms(null)} className="p-1 hover:bg-gray-100 rounded-full shrink-0">
@@ -188,6 +213,7 @@ export default function Roles() {
                             onChange={() => togglePerm(p.key)}
                             className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                           <span className="text-sm text-gray-700">{p.name}</span>
+                          {ASSIGN_REQUIRED_PERMS.includes(p.key) && <Pin className="w-3 h-3 text-amber-500 shrink-0" />}
                         </label>
                       ))}
                     </div>

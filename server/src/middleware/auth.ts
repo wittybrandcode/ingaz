@@ -18,11 +18,12 @@ interface TokenUser {
   name: string
   avatar: string | null
   role_id: number
+  is_manager: number
 }
 
 export function generateToken(user: TokenUser): string {
   return jwt.sign(
-    { id: user.id, email: user.email, name: user.name, avatar: user.avatar, role_id: user.role_id },
+    { id: user.id, email: user.email, name: user.name, avatar: user.avatar, role_id: user.role_id, is_manager: user.is_manager },
     JWT_SECRET,
     { expiresIn: TOKEN.EXPIRY }
   )
@@ -94,7 +95,15 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     return
   }
   try {
-    req.user = jwt.verify(token, JWT_SECRET) as Request['user']
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+      avatar: decoded.avatar,
+      role_id: decoded.role_id,
+      is_manager: decoded.is_manager,
+    } as Request['user']
     next()
   } catch {
     res.fail(401, 'رمز التوكن غير صالح')
@@ -103,17 +112,15 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
 
 export function authorize(...roleIds: number[]) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!roleIds.includes(req.user.role_id)) {
-      res.fail(403, 'صلاحيات غير كافية')
-      return
-    }
-    next()
+    if (req.user.is_manager) { next(); return }
+    if (roleIds.includes(req.user.role_id)) { next(); return }
+    res.fail(403, 'صلاحيات غير كافية')
   }
 }
 
 export function authorizePermission(permissionKey: string) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    if (req.user.role_id === ROLES.ADMIN || req.user.role_id === ROLES.DEPUTY) { next(); return }
+    if (req.user.is_manager) { next(); return }
     const rows = await getDb()
       .select()
       .from(schema.rolePermissions)
@@ -125,13 +132,20 @@ export function authorizePermission(permissionKey: string) {
         )
       )
       .limit(1)
-    if (rows.length === 0) { res.fail(403, 'صلاحيات غير كافية'); return }
-    next()
+    if (rows.length > 0) { next(); return }
+    res.fail(403, 'صلاحيات غير كافية')
   }
 }
 
-export async function hasPermission(roleId: number, permissionKey: string): Promise<boolean> {
-  if (roleId === ROLES.ADMIN || roleId === ROLES.DEPUTY) return true
+export async function hasPermission(roleId: number, permissionKey: string, userId?: number): Promise<boolean> {
+  if (userId) {
+    const [user] = await getDb()
+      .select({ isManager: schema.users.isManager })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1)
+    if (user?.isManager) return true
+  }
   const rows = await getDb()
     .select()
     .from(schema.rolePermissions)
@@ -144,6 +158,14 @@ export async function hasPermission(roleId: number, permissionKey: string): Prom
     )
     .limit(1)
   return rows.length > 0
+}
+
+export function requireManager(req: Request, res: Response, next: NextFunction) {
+  if (!req.user?.is_manager) {
+    res.fail(403, 'غير مصرح')
+    return
+  }
+  next()
 }
 
 export function clearFrozenCache(userId: number): void {

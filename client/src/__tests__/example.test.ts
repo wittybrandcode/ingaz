@@ -4,8 +4,6 @@ import { ROLES_VALUES, STATUS_LABELS } from '@shared/types'
 describe('shared constants', () => {
   it('ROLES_VALUES should have correct values', () => {
     expect(ROLES_VALUES.ADMIN).toBe(1)
-    expect(ROLES_VALUES.DEPUTY).toBe(2)
-    expect(ROLES_VALUES.EMPLOYEE).toBe(3)
   })
 
   it('STATUS_LABELS should contain all statuses', () => {

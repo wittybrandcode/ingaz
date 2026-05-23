@@ -1,0 +1,223 @@
+<mxfile host="Electron" agent="Mozilla/5.0">
+  <diagram name="نظام الصلاحيات" id="page1">
+    <mxGraphModel dx="1174" dy="687" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1600" background="#ffffff" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t1" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1e293b;" value="نظام الصلاحيات - Ingaz (إنجاز)" vertex="1">
+          <mxGeometry height="40" width="400" x="800" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="r1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e293b;fontColor=#ffffff;fontSize=14;fontStyle=1;strokeColor=#0f172a;" value="نظام الصلاحيات" vertex="1">
+          <mxGeometry height="40" width="200" x="900" y="90" as="geometry" />
+        </mxCell>
+        <mxCell id="l1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;fontColor=#ffffff;fontSize=12;fontStyle=1;strokeColor=#1e293b;" value="الأدوار النظامية (System Roles)" vertex="1">
+          <mxGeometry height="34" width="280" x="80" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="l1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="admin" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#166534;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#14532d;" value=" Admin (id=1) " vertex="1">
+          <mxGeometry height="30" width="240" x="100" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="l1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="admin" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ap1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbf7d0;fontColor=#166534;fontSize=10;strokeColor=#86efac;" value="جميع الصلاحيات الـ 31 (full access)" vertex="1">
+          <mxGeometry height="26" width="220" x="110" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="admin" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#86efac;" target="ap1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dep" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#a16207;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#854d0e;" value=" Deputy (id=2) " vertex="1">
+          <mxGeometry height="30" width="240" x="100" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="l1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="dep" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dp1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="المشاريع: view, create, edit, assign" vertex="1">
+          <mxGeometry height="24" width="160" x="30" y="415" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="dep" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#fef08a;" target="dp1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="dp1x" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=10;strokeColor=#fca5a5;" value="المشاريع: delete, archive ❌" vertex="1">
+          <mxGeometry height="24" width="160" x="30" y="447" as="geometry" />
+        </mxCell>
+        <mxCell id="dp2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="المهام: view, create, edit, delete, assign" vertex="1">
+          <mxGeometry height="24" width="160" x="210" y="415" as="geometry" />
+        </mxCell>
+        <mxCell id="dp3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="المهام الفرعية: view, create, edit, delete, assign, submit, complete, cancel, defer" vertex="1">
+          <mxGeometry height="24" width="180" x="390" y="415" as="geometry" />
+        </mxCell>
+        <mxCell id="dp4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=10;strokeColor=#fca5a5;" value="المستخدمين: view, create, edit, delete ❌" vertex="1">
+          <mxGeometry height="24" width="160" x="210" y="447" as="geometry" />
+        </mxCell>
+        <mxCell id="dp5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=10;strokeColor=#fca5a5;" value="الأدوار: view, create, edit, delete ❌" vertex="1">
+          <mxGeometry height="24" width="180" x="390" y="447" as="geometry" />
+        </mxCell>
+        <mxCell id="dp6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="التحليلات: view ✅" vertex="1">
+          <mxGeometry height="24" width="160" x="210" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="dp7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="التعليقات: create ✅" vertex="1">
+          <mxGeometry height="24" width="180" x="390" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="emp" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1e40af;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#1e3a8a;" value=" Employee (id=3) " vertex="1">
+          <mxGeometry height="30" width="240" x="100" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="l1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="emp" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ep1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;fontColor=#1e40af;fontSize=10;strokeColor=#93c5fd;" value="المشاريع: view ✅" vertex="1">
+          <mxGeometry height="24" width="140" x="30" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="emp" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#93c5fd;" target="ep1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ep2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;fontColor=#1e40af;fontSize=10;strokeColor=#93c5fd;" value="المهام: view, create, edit ✅" vertex="1">
+          <mxGeometry height="24" width="150" x="190" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="ep2x" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=10;strokeColor=#fca5a5;" value="المهام: delete, assign ❌" vertex="1">
+          <mxGeometry height="24" width="150" x="190" y="617" as="geometry" />
+        </mxCell>
+        <mxCell id="ep3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;fontColor=#1e40af;fontSize=10;strokeColor=#93c5fd;" value="المهام الفرعية: view, create, submit ✅" vertex="1">
+          <mxGeometry height="24" width="180" x="360" y="585" as="geometry" />
+        </mxCell>
+        <mxCell id="ep3x" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=10;strokeColor=#fca5a5;" value="الباقي: edit, delete, assign, complete, cancel, defer ❌" vertex="1">
+          <mxGeometry height="24" width="180" x="360" y="617" as="geometry" />
+        </mxCell>
+        <mxCell id="ep4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;fontColor=#1e40af;fontSize=10;strokeColor=#93c5fd;" value="التعليقات: create ✅" vertex="1">
+          <mxGeometry height="24" width="140" x="30" y="617" as="geometry" />
+        </mxCell>
+        <mxCell id="l2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;fontColor=#ffffff;fontSize=12;fontStyle=1;strokeColor=#1e293b;" value="أدوار المشروع (Project Roles)" vertex="1">
+          <mxGeometry height="34" width="280" x="750" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="l2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pmgr" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7e22ce;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#6b21a8;" value="manager (مدير المشروع)" vertex="1">
+          <mxGeometry height="30" width="280" x="750" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" edge="1" parent="1" source="l2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="pmgr" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pmgr1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;fontColor=#7e22ce;fontSize=10;strokeColor=#d8b4fe;" value="القيمة الافتراضية عند إضافة عضو للمشروع" vertex="1">
+          <mxGeometry height="26" width="260" x="760" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" edge="1" parent="1" source="pmgr" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#d8b4fe;" target="pmgr1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pmem" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#9333ea;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#7e22ce;" value="member (عضو المشروع)" vertex="1">
+          <mxGeometry height="30" width="280" x="750" y="360" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="l2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="pmem" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="pmem1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="⚠️ موجود في الـ schema لكن غير مستخدم في الكود" vertex="1">
+          <mxGeometry height="26" width="260" x="760" y="410" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="pmem" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#fef08a;" target="pmem1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;fontColor=#ffffff;fontSize=12;fontStyle=1;strokeColor=#1e293b;" value="صلاحيات إضافية (User-Level) — 🔜 جديد" vertex="1">
+          <mxGeometry height="34" width="300" x="1200" y="170" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="l3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="upt" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#881337;fontColor=#ffffff;fontSize=11;fontStyle=1;strokeColor=#9f1239;" value="جدول user_permissions" vertex="1">
+          <mxGeometry height="30" width="300" x="1200" y="240" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" edge="1" parent="1" source="l3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="upt" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="upt1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#991b1b;fontSize=10;strokeColor=#fca5a5;" value="user_id (FK → users.id)" vertex="1">
+          <mxGeometry height="22" width="280" x="1210" y="290" as="geometry" />
+        </mxCell>
+        <mxCell id="e15" edge="1" parent="1" source="upt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#fca5a5;" target="upt1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="upt2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#991b1b;fontSize=10;strokeColor=#fca5a5;" value="permission_id (FK → permissions.id)" vertex="1">
+          <mxGeometry height="22" width="280" x="1210" y="320" as="geometry" />
+        </mxCell>
+        <mxCell id="upt3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#991b1b;fontSize=10;strokeColor=#fca5a5;" value="UNIQUE (user_id, permission_id)" vertex="1">
+          <mxGeometry height="22" width="280" x="1210" y="350" as="geometry" />
+        </mxCell>
+        <mxCell id="uptex" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;fontColor=#9f1239;fontSize=10;strokeColor=#fecdd3;fontStyle=1;" value="مثال: Admin يمنح Deputy معيّن projects.assign" vertex="1">
+          <mxGeometry height="26" width="280" x="1210" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="e16" edge="1" parent="1" source="upt" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#fecdd3;" target="uptex" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;fontColor=#ffffff;fontSize=12;fontStyle=1;strokeColor=#1e293b;" value="قيود الرصيد (Credit Restrictions)" vertex="1">
+          <mxGeometry height="34" width="280" x="750" y="470" as="geometry" />
+        </mxCell>
+        <mxCell id="e17" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="l4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="cr1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="can_login ✅" vertex="1">
+          <mxGeometry height="22" width="130" x="740" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="cr2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#bbf7d0;fontColor=#166534;fontSize=10;strokeColor=#86efac;" value="can_create_projects ✅ (مستخدم)" vertex="1">
+          <mxGeometry height="22" width="150" x="890" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="cr3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="can_create_tasks ⚠️ (غير مستخدم)" vertex="1">
+          <mxGeometry height="22" width="130" x="740" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="cr4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="can_edit ⚠️ (غير مستخدم)" vertex="1">
+          <mxGeometry height="22" width="150" x="890" y="560" as="geometry" />
+        </mxCell>
+        <mxCell id="cr5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="can_assign ⚠️ (غير مستخدم)" vertex="1">
+          <mxGeometry height="22" width="130" x="740" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="cr6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="can_submit ⚠️ (غير مستخدم)" vertex="1">
+          <mxGeometry height="22" width="150" x="890" y="590" as="geometry" />
+        </mxCell>
+        <mxCell id="cr7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef9c3;fontColor=#a16207;fontSize=10;strokeColor=#fef08a;" value="can_comment ⚠️ (غير مستخدم)" vertex="1">
+          <mxGeometry height="22" width="280" x="740" y="620" as="geometry" />
+        </mxCell>
+        <mxCell id="e18" edge="1" parent="1" source="l4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="cr1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="l5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#334155;fontColor=#ffffff;fontSize=12;fontStyle=1;strokeColor=#1e293b;" value="آلية التحقق (Authorization Flow)" vertex="1">
+          <mxGeometry height="34" width="300" x="1400" y="480" as="geometry" />
+        </mxCell>
+        <mxCell id="e19" edge="1" parent="1" source="r1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="l5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="mw1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="1. authenticate → JWT + blacklist" vertex="1">
+          <mxGeometry height="24" width="320" x="1390" y="535" as="geometry" />
+        </mxCell>
+        <mxCell id="mw2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="2. checkFrozen → حساب مجمد؟" vertex="1">
+          <mxGeometry height="24" width="320" x="1390" y="567" as="geometry" />
+        </mxCell>
+        <mxCell id="mw3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="3. requireCredit(field) → رصيد كافي؟" vertex="1">
+          <mxGeometry height="24" width="320" x="1390" y="599" as="geometry" />
+        </mxCell>
+        <mxCell id="mw4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="4. authorize(roleId, ...) → هل الدور مسموح؟" vertex="1">
+          <mxGeometry height="24" width="320" x="1390" y="631" as="geometry" />
+        </mxCell>
+        <mxCell id="mw5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f1f5f9;fontColor=#475569;fontSize=10;strokeColor=#cbd5e1;" value="5. authorizePermission(key) → يفحص role_permissions" vertex="1">
+          <mxGeometry height="24" width="320" x="1390" y="663" as="geometry" />
+        </mxCell>
+        <mxCell id="mw5a" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fecaca;fontColor=#b91c1c;fontSize=9;strokeColor=#fca5a5;" value="⚠️ bypass: Admin + Deputy يمررون بدون فحص DB" vertex="1">
+          <mxGeometry height="20" width="320" x="1390" y="695" as="geometry" />
+        </mxCell>
+        <mxCell id="e20" edge="1" parent="1" source="l5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#94a3b8;" target="mw1" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e21" edge="1" parent="1" source="mw1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cbd5e1;" target="mw2" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e22" edge="1" parent="1" source="mw2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cbd5e1;" target="mw3" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e23" edge="1" parent="1" source="mw3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cbd5e1;" target="mw4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e24" edge="1" parent="1" source="mw4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#cbd5e1;" target="mw5" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

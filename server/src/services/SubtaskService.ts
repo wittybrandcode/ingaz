@@ -2,10 +2,10 @@ import sanitizeHtml from 'sanitize-html'
 import path from 'path'
 import fs from 'fs'
 import { eq, and, count, sql, inArray } from 'drizzle-orm'
-import { ROLES, PAGINATION } from '../constants.js'
+import { PAGINATION, ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, isProjectManager, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee, getDb } from '../db/index.js'
+import { schema, addActivityLog, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee, isProjectManager, getDb } from '../db/index.js'
 import { NotificationService } from './NotificationService.js'
 const notifService = new NotificationService(getDb())
 import { hasPermission } from '../middleware/auth.js'
@@ -94,8 +94,14 @@ export class SubtaskService extends BaseService {
     }
   }
 
-  private async canChangeStatus(subtask: any, userId: number, roleId: number): Promise<boolean> {
-    if (roleId === ROLES.ADMIN || roleId === ROLES.DEPUTY) return true
+  private async canChangeStatus(subtask: any, userId: number): Promise<boolean> {
+    const [user] = await this.db
+      .select({ isManager: schema.users.isManager, roleId: schema.users.roleId })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .limit(1)
+    if (user?.isManager) return true
+    if (user?.roleId === ROLES.ADMIN) return true
     const isAssignee = await isSubtaskAssignee(subtask.id, userId)
     if (isAssignee) return true
     const [taskAssign] = await this.db
@@ -248,19 +254,19 @@ export class SubtaskService extends BaseService {
   }
 
   async create(data: { task_id: number; title: string; description?: string | null; assigned_to?: number | null; deadline?: string | null }, ctx: ServiceContext) {
-    if (ctx.roleId === ROLES.EMPLOYEE) {
-      const [task] = await this.db
-        .select({ projectId: schema.tasks.projectId })
-        .from(schema.tasks)
-        .where(eq(schema.tasks.id, data.task_id))
-        .limit(1)
-      if (!task) throw new AppError(404, 'المهمة غير موجودة')
-      if (!(await isProjectManager(ctx.userId, task.projectId))) {
+    const [taskRow] = await this.db
+      .select({ projectId: schema.tasks.projectId })
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, data.task_id))
+      .limit(1)
+    if (taskRow) {
+      const isPm = await isProjectManager(ctx.userId, taskRow.projectId)
+      if (!ctx.isManager && ctx.roleId !== ROLES.ADMIN && !isPm) {
         throw new AppError(403, 'لا تملك صلاحية إنشاء مهام فرعية في هذا المشروع')
       }
     }
 
-    if (data.assigned_to && ctx.roleId !== ROLES.ADMIN) {
+    if (data.assigned_to && !ctx.isManager) {
       if (!(await hasPermission(ctx.roleId, 'subtasks.assign'))) {
         throw new AppError(403, 'لا تملك صلاحية تعيين المهام الفرعية')
       }
@@ -341,7 +347,7 @@ export class SubtaskService extends BaseService {
     const [oldSubtask] = await this.db.select().from(schema.subtasks).where(eq(schema.subtasks.id, id)).limit(1)
     if (!oldSubtask) throw new AppError(404, 'المهمة الفرعية غير موجودة')
 
-    if (data.assigned_to !== undefined && ctx.roleId !== ROLES.ADMIN) {
+    if (data.assigned_to !== undefined && !ctx.isManager) {
       if (!(await hasPermission(ctx.roleId, 'subtasks.assign'))) {
         throw new AppError(403, 'لا تملك صلاحية تعيين المهام الفرعية')
       }
@@ -352,7 +358,7 @@ export class SubtaskService extends BaseService {
       if (!allowed || !allowed.includes(data.status)) {
         throw new AppError(400, `لا يمكن تغيير الحالة من "${oldSubtask.status}" إلى "${data.status}"`)
       }
-      if (!(await this.canChangeStatus(oldSubtask, ctx.userId, ctx.roleId))) {
+      if (!(await this.canChangeStatus(oldSubtask, ctx.userId))) {
         throw new AppError(403, 'لا تملك صلاحية تغيير حالة هذه المهمة الفرعية')
       }
       if (data.status === 'completed' && !oldSubtask.winnerCommentId) {
@@ -477,7 +483,7 @@ export class SubtaskService extends BaseService {
           const admins = await this.db
             .select({ id: schema.users.id })
             .from(schema.users)
-            .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
+            .where(eq(schema.users.isManager, 1))
           for (const a of admins) recipients.add(a.id)
           notifService.createMany(
             [...recipients].map(userId => ({
@@ -496,7 +502,7 @@ export class SubtaskService extends BaseService {
           const admins = await this.db
             .select({ id: schema.users.id })
             .from(schema.users)
-            .where(inArray(schema.users.roleId, [ROLES.ADMIN, ROLES.DEPUTY]))
+            .where(eq(schema.users.isManager, 1))
           notifService.createMany(
             admins.map((a: any) => ({
               userId: a.id,
@@ -648,7 +654,6 @@ export class SubtaskService extends BaseService {
         .where(eq(schema.users.id, userId))
         .limit(1)
       if (!userRow) throw new AppError(404, 'المستخدم غير موجود')
-      if (userRow.roleId !== ROLES.EMPLOYEE) throw new AppError(400, 'يمكن تكليف المستخدمين بصلاحية موظف فقط')
 
       let assignee: any
       let subtask: any

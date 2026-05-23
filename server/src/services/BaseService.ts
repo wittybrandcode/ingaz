@@ -10,6 +10,7 @@ export class AppError extends Error {
 export interface ServiceContext {
   userId: number
   roleId: number
+  isManager: number
   userName?: string
   userAvatar?: string | null
   io?: import('socket.io').Server | null

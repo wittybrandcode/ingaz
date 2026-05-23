@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "is_manager" integer DEFAULT 0;

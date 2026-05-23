@@ -15,6 +15,7 @@ vi.mock('../db/index.js', async () => {
   return {
     schema,
     isProjectManager: mockIsProjectManager,
+    isSubtaskAssignee: vi.fn().mockReturnValue(false),
     addActivityLog: vi.fn(),
     getTaskAssignees: mockGetTaskAssignees,
     getSubtaskAssignees: mockGetSubtaskAssignees,
@@ -38,14 +39,14 @@ vi.mock('../middleware/auth.js', () => ({
   clearFrozenCache: vi.fn(),
 }))
 
-const adminCtx: ServiceContext = { userId: 1, roleId: 1, userName: 'Admin' }
-const deputyCtx: ServiceContext = { userId: 2, roleId: 2, userName: 'Deputy' }
-const empCtx: ServiceContext = { userId: 3, roleId: 3, userName: 'Employee' }
-const emp2Ctx: ServiceContext = { userId: 4, roleId: 3, userName: 'Employee2' }
+const adminCtx: ServiceContext = { userId: 1, roleId: 1, isManager: 0, userName: 'Admin' }
+const deputyCtx: ServiceContext = { userId: 2, roleId: 2, isManager: 1, userName: 'Deputy' }
+const empCtx: ServiceContext = { userId: 3, roleId: 2, isManager: 0, userName: 'Employee' }
+const emp2Ctx: ServiceContext = { userId: 4, roleId: 2, isManager: 0, userName: 'Employee2' }
 
 beforeEach(() => {
   mockIsProjectManager.mockReset()
-  mockHasPermission.mockReset().mockReturnValue(true)
+  mockHasPermission.mockClear()
   mockGetBulkSubtaskAssignees.mockReset().mockReturnValue({})
   mockGetTaskAssignees.mockReset().mockReturnValue([])
   mockGetSubtaskAssignees.mockReset().mockReturnValue([])
@@ -72,7 +73,7 @@ describe('TaskService', () => {
     mockIsProjectManager.mockReturnValue(true)
     const db = await createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedProjectMember(db, 10, 3)
 
@@ -86,8 +87,8 @@ describe('TaskService', () => {
     mockIsProjectManager.mockReturnValue(false)
     const db = await createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
-    seedUser(db, { id: 4, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
+    seedUser(db, { id: 4, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedProjectMember(db, 10, 4)
 
@@ -169,7 +170,7 @@ describe('SubtaskService', () => {
     mockIsProjectManager.mockReturnValue(true)
     const db = await createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedProjectMember(db, 10, 3)
     seedTask(db, { id: 100, project_id: 10, created_by: 1 })
@@ -184,7 +185,7 @@ describe('SubtaskService', () => {
     mockIsProjectManager.mockReturnValue(false)
     const db = await createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedTask(db, { id: 100, project_id: 10, created_by: 1 })
 
@@ -197,7 +198,7 @@ describe('SubtaskService', () => {
     mockIsProjectManager.mockReturnValue(true)
     const db = await createTestDb()
     seedBase(db)
-    seedUser(db, { id: 3, role_id: 3 })
+    seedUser(db, { id: 3, role_id: 2 })
     seedProject(db, { id: 10, created_by: 1 })
     seedProjectMember(db, 10, 3)
     seedTask(db, { id: 100, project_id: 10, created_by: 1 })

@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
-import { ROLES } from './constants'
+
 import { useEffect, lazy, Suspense } from 'react'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -32,7 +32,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuthStore()
-  if (!user || user.role_id !== ROLES.ADMIN) return <Navigate to="/dashboard" replace />
+  if (!user || !user.is_manager) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
 

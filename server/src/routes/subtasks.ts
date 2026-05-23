@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { ROLES } from '../constants.js'
-import { authenticate, authorize, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
+import { authenticate, authorizePermission, requireCredit, checkFrozen } from '../middleware/auth.js'
 import { validate, createSubtaskSchema, updateSubtaskSchema } from '../validation.js'
 import { subtaskService, AppError } from '../services/index.js'
 import type { ServiceContext } from '../services/index.js'
@@ -8,7 +7,7 @@ import type { ServiceContext } from '../services/index.js'
 const router = Router()
 
 function ctx(req: any): ServiceContext {
-  return { userId: req.user.id, roleId: req.user.role_id, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
+  return { userId: req.user.id, roleId: req.user.role_id, isManager: req.user.is_manager, userName: req.user.name, userAvatar: req.user.avatar, io: req.app.get('io') }
 }
 
 function tryCatch(handler: (req: any, res: any) => any) {
@@ -65,7 +64,7 @@ router.put('/:id', authenticate, checkFrozen, validate(updateSubtaskSchema), try
   res.success(subtask)
 }))
 
-router.delete('/:id', authenticate, authorize(ROLES.ADMIN, ROLES.DEPUTY), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, authorizePermission('subtasks.delete'), tryCatch(async (req, res) => {
   const result = await subtaskService.delete(Number(req.params.id), ctx(req))
   res.success(result)
 }))
