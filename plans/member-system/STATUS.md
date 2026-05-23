@@ -1,6 +1,6 @@
 # Member System — حالة التنفيذ
 
-> آخر تحديث: 23-05-2026 21:32
+> آخر تحديث: 23-05-2026 21:34
 
 ---
 
@@ -8,8 +8,8 @@
 
 ```json
 {
-  "phase": 4,
-  "name": "Online Status via Socket",
+  "phase": 5,
+  "name": "Action Icons + Assign/Warn",
   "status": "not_started",
   "current_step": 0,
   "total_steps": 4,
@@ -29,8 +29,8 @@
 | 1 | **Member API** | ✅ تم |
 | 2 | **Member Store** | ✅ تم |
 | 3 | **MemberCard + MemberList** | ✅ تم |
-| 4 | Online Status via Socket | 🔴 لم تبدأ |
-| 5 | Action Icons + Assign/Warn | ⚪ |
+| 4 | **Online Status via Socket** | ✅ تم |
+| 5 | Action Icons + Assign/Warn | 🔴 لم تبدأ |
 | 6 | MemberDetailModal | ⚪ |
 
 🔴 = لم تبدأ | 🟡 = قيد التنفيذ | 🟢 = اكتملت | ✅ = تم التحقق

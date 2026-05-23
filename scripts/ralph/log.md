@@ -4,6 +4,14 @@
 
 ---
 
+## Phase 4 — 23-05-2026 ✅
+
+**المرحلة:** 4 — Online Status via Socket  
+**الحالة:** ✅ مكتملة (منفذة ضمن Phase 2 + 3)  
+**ملاحظة:** أحداث user:online/offline أضيفت في السيرفر (index.ts) والعميل (socket.ts)، والنقطة الخضراء في MemberProfileCard
+
+---
+
 ## Phase 3 — 23-05-2026 ✅
 
 **المرحلة:** 3 — MemberCard + MemberList  
