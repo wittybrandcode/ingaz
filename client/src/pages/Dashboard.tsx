@@ -5,11 +5,185 @@ import { Link } from 'react-router-dom'
 import Avatar from '../components/Avatar'
 import MemberList from '../components/MemberList'
 import {
-  FolderKanban, ListTodo, Users, TrendingUp, Loader2, FileSpreadsheet
+  FolderKanban, ListTodo, Users, TrendingUp, Loader2, FileSpreadsheet,
+  AlertTriangle, Activity, Shield
 } from 'lucide-react'
 import type { DashboardData } from '../types'
 import { exportToCSV } from '../lib/exportToCSV'
 import { SUBTASK_STATUS_CONFIG } from '../statusConfig'
+
+interface MemberActiveTask {
+  id: number; title: string
+  project_id: number; project_title: string
+  status: string; deadline: string | null
+}
+
+interface MemberActivity {
+  id: number; action: string; details: string; created_at: string
+}
+
+function MemberDashboard() {
+  const user = useAuthStore(s => s.user)
+  const [tasks, setTasks] = useState<MemberActiveTask[]>([])
+  const [activity, setActivity] = useState<MemberActivity[]>([])
+  const [credit, setCredit] = useState<{ credit_score: number; level: { name_ar: string; color: string } } | null>(null)
+  const [warnings, setWarnings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const loadData = async () => {
+    if (!user) return
+    setLoading(true); setError('')
+    try {
+      const [tasksRes, activityRes, creditRes, warningsRes] = await Promise.all([
+        api.get(`/members/${user.id}/tasks`).catch(() => ({ data: [] })),
+        api.get(`/members/${user.id}/activity`).catch(() => ({ data: [] })),
+        api.get('/warnings/my-level').catch(() => ({ data: null })),
+        api.get('/warnings/my').catch(() => ({ data: [] })),
+      ])
+      setTasks(tasksRes.data || [])
+      setActivity(activityRes.data || [])
+      setCredit(creditRes.data)
+      setWarnings(warningsRes.data || [])
+    } catch { setError('فشل تحميل البيانات') }
+    setLoading(false)
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  if (loading) return <div className="text-center py-12 text-gray-500"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />جاري تحميل البيانات...</div>
+  if (error) return <div className="text-center py-12"><p className="text-red-500 mb-3">{error}</p><button onClick={loadData} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm">إعادة المحاولة</button></div>
+
+  const activeTasksCount = tasks.filter(t => !['approved', 'cancelled'].includes(t.status)).length
+  const pendingWarnings = warnings.filter((w: any) => w.status === 'pending').length
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">مرحباً، {user?.name}</h1>
+          <p className="text-sm text-gray-500 mt-1">نظرة سريعة على مهامك ونشاطاتك</p>
+        </div>
+        <Avatar name={user?.name || ''} avatar={user?.avatar} size="md" />
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">المهام النشطة</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{activeTasksCount}</p>
+            </div>
+            <div className="bg-indigo-500 p-3 rounded-lg"><ListTodo className="w-5 h-5 text-white" /></div>
+          </div>
+        </div>
+        <Link to="/projects" className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">الإنذارات</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{pendingWarnings}</p>
+            </div>
+            <div className="bg-amber-500 p-3 rounded-lg"><AlertTriangle className="w-5 h-5 text-white" /></div>
+          </div>
+        </Link>
+        <Link to="/projects" className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">الرصيد</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{credit?.credit_score ?? '—'}</p>
+            </div>
+            <div className="bg-emerald-500 p-3 rounded-lg"><Shield className="w-5 h-5 text-white" /></div>
+          </div>
+        </Link>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500">المستوى</p>
+              <p className="text-lg font-bold mt-1" style={{ color: credit?.level?.color || '#6b7280' }}>{credit?.level?.name_ar || '—'}</p>
+            </div>
+            <div className="bg-purple-500 p-3 rounded-lg"><TrendingUp className="w-5 h-5 text-white" /></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <ListTodo className="w-4 h-4" /> مهامي النشطة
+          </h2>
+          {tasks.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-6">لا توجد مهام حالياً</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {tasks.map(t => (
+                <Link key={t.id} to={`/projects/${t.project_id}`}
+                  className="block p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-gray-800">{t.title}</p>
+                    <span className={`text-xs px-1.5 py-0.5 rounded ${SUBTASK_STATUS_CONFIG[t.status]?.bg || 'bg-gray-100'} ${SUBTASK_STATUS_CONFIG[t.status]?.color || 'text-gray-600'}`}>
+                      {SUBTASK_STATUS_CONFIG[t.status]?.label || t.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{t.project_title}</p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Activity className="w-4 h-4" /> آخر النشاطات
+          </h2>
+          {activity.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-6">لا توجد نشاطات بعد</p>
+          ) : (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {activity.slice(0, 10).map(a => (
+                <div key={a.id} className="flex items-start gap-2 p-2 rounded-lg bg-gray-50">
+                  <Activity className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm text-gray-700">{a.details || a.action}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date(a.created_at).toLocaleString('ar-SA-u-nu-latn')}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {pendingWarnings > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <h2 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" /> إنذاراتي
+          </h2>
+          <div className="space-y-2">
+            {warnings.filter((w: any) => w.status === 'pending').slice(0, 5).map((w: any) => (
+              <div key={w.id} className="flex items-start gap-2 p-2 rounded-lg bg-white">
+                <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm text-gray-700">{w.reason}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {new Date(w.created_at).toLocaleDateString('ar-SA-u-nu-latn')} — مهلة: {new Date(w.deadline).toLocaleDateString('ar-SA-u-nu-latn')}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 pt-2">
+        <Link to="/projects" className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition-colors">
+          مساحة العمل
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const user = useAuthStore(s => s.user)
@@ -17,6 +191,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exporting, setExporting] = useState(false)
+
+  if (!user) return null
+
+  if (!user.is_manager) return <MemberDashboard />
 
   const loadData = async () => {
     setLoading(true); setError('')

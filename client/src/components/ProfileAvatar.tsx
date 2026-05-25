@@ -112,14 +112,13 @@ export function notificationBadge(count: number | undefined): AvatarBadge | null
   }
 }
 
-export function onlineBadge(online: boolean | undefined): AvatarBadge | null {
-  if (!online) return null
+export function onlineBadge(online: boolean | undefined): AvatarBadge {
   return {
     key: 'online',
-    content: <div className="w-full h-full rounded-full bg-green-500" />,
+    content: <div className={`w-full h-full rounded-full ${online ? 'bg-green-500' : 'bg-red-400'}`} />,
     position: 'bottom-right',
     size: 12,
-    tooltip: 'متصل',
+    tooltip: online ? 'متصل' : 'غير متصل',
   }
 }
 
