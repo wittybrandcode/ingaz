@@ -174,19 +174,29 @@ io.use(async (socket, next) => {
   } catch { next(new Error('Invalid token')); }
 });
 
+const onlineUsers = new Set<number>()
+
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id, 'User:', socket.data.user?.id);
   const uid = socket.data.user?.id;
-  if (uid) socket.broadcast.emit('user:online', uid);
+  if (uid) {
+    onlineUsers.add(uid)
+    socket.broadcast.emit('user:online', uid);
+  }
 
   socket.on('join:user', (userId) => {
     if (socket.data.user?.id === userId) {
       socket.join(`user:${userId}`);
+      // Send current online list to the newly connected client
+      socket.emit('online:list', Array.from(onlineUsers));
     }
   });
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
-    if (uid) socket.broadcast.emit('user:offline', uid);
+    if (uid) {
+      onlineUsers.delete(uid)
+      socket.broadcast.emit('user:offline', uid);
+    }
   });
 });
 

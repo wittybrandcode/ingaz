@@ -41,6 +41,11 @@ socket.on('user:offline', (userId: number) => {
   useMemberStore.getState().setOnline(userId, false);
 });
 
+socket.on('online:list', (userIds: number[]) => {
+  const setOnline = useMemberStore.getState().setOnline;
+  userIds.forEach(id => setOnline(id, true));
+});
+
 let prevUserId: number | null = null;
 useAuthStore.subscribe((state) => {
   if (state.user && state.user.id !== prevUserId) {

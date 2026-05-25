@@ -85,8 +85,8 @@ export function canAssignBadge(canAssign: boolean): AvatarBadge | null {
   return assignBadge(ASSIGN_REQUIRED_PERMS)
 }
 
-export function warningsBadge(count: number): AvatarBadge | null {
-  if (count === 0) return null
+export function warningsBadge(count: number | undefined): AvatarBadge | null {
+  if (!count) return null
   const color = count <= 2 ? '#eab308' : '#ef4444'
   return {
     key: 'warnings',
@@ -99,8 +99,8 @@ export function warningsBadge(count: number): AvatarBadge | null {
   }
 }
 
-export function notificationBadge(count: number): AvatarBadge | null {
-  if (count === 0) return null
+export function notificationBadge(count: number | undefined): AvatarBadge | null {
+  if (!count) return null
   return {
     key: 'notifications',
     content: <span>{count}</span>,
@@ -112,13 +112,14 @@ export function notificationBadge(count: number): AvatarBadge | null {
   }
 }
 
-export function onlineBadge(online: boolean): AvatarBadge {
+export function onlineBadge(online: boolean | undefined): AvatarBadge | null {
+  if (!online) return null
   return {
     key: 'online',
-    content: <div className={`w-full h-full rounded-full ${online ? 'bg-green-500' : 'bg-red-400'}`} />,
+    content: <div className="w-full h-full rounded-full bg-green-500" />,
     position: 'bottom-right',
     size: 12,
-    tooltip: online ? 'متصل' : 'غير متصل',
+    tooltip: 'متصل',
   }
 }
 
