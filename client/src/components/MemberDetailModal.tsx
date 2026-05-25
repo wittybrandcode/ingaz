@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import type { MemberProfile } from '../store/memberStore'
-import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, assignBadge } from './ProfileAvatar'
+import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, canAssignBadge } from './ProfileAvatar'
 import { X, Loader2, ListTodo, FolderKanban, AlertTriangle, Clock, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -50,7 +50,7 @@ export default function MemberDetailModal({ member, onClose }: MemberDetailModal
                 <ProfileAvatar name={member.name} avatar={member.avatar} size="lg" badges={[
                   notificationBadge(member.unread_count),
                   warningsBadge(member.warnings_count),
-                  assignBadge([]),
+                  canAssignBadge(member.can_assign),
                   onlineBadge(member.online),
                 ].filter(Boolean) as any} />
                 <div>

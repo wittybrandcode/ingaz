@@ -1,5 +1,5 @@
 import { useMemberStore, type MemberProfile } from '../store/memberStore'
-import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, assignBadge } from './ProfileAvatar'
+import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, canAssignBadge } from './ProfileAvatar'
 import { Users } from 'lucide-react'
 
 export default function MemberProfileCard({ member }: { member: MemberProfile }) {
@@ -24,7 +24,7 @@ export default function MemberProfileCard({ member }: { member: MemberProfile })
           badges={[
             notificationBadge(member.unread_count),
             warningsBadge(member.warnings_count),
-            assignBadge([]),
+            canAssignBadge(member.can_assign),
             onlineBadge(member.online),
           ].filter(Boolean) as any}
         />

@@ -67,6 +67,7 @@ export default function ProfileAvatar({ name, avatar, size = 'md', badges = [], 
 }
 
 export function assignBadge(permissions: string[] = []): AvatarBadge | null {
+  if (permissions.length === 0) return null
   const ok = ASSIGN_REQUIRED_PERMS.every(p => permissions.includes(p))
   if (!ok) return null
   return {
@@ -79,6 +80,11 @@ export function assignBadge(permissions: string[] = []): AvatarBadge | null {
   }
 }
 
+export function canAssignBadge(canAssign: boolean): AvatarBadge | null {
+  if (!canAssign) return null
+  return assignBadge(ASSIGN_REQUIRED_PERMS)
+}
+
 export function warningsBadge(count: number): AvatarBadge | null {
   if (count === 0) return null
   const color = count <= 2 ? '#eab308' : '#ef4444'
@@ -89,7 +95,7 @@ export function warningsBadge(count: number): AvatarBadge | null {
     size: 20,
     bgColor: color,
     textColor: '#fff',
-    tooltip: `التنبيهات: ${count}`,
+    tooltip: `الإنذارات: ${count}`,
   }
 }
 
