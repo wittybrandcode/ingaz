@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, X, Bell } from 'lucide-react'
+import { Check } from 'lucide-react'
 import Avatar from './Avatar'
 import { ASSIGN_REQUIRED_PERMS } from '../constants'
 
@@ -66,15 +66,16 @@ export default function ProfileAvatar({ name, avatar, size = 'md', badges = [], 
   )
 }
 
-export function assignBadge(permissions: string[] = []): AvatarBadge {
+export function assignBadge(permissions: string[] = []): AvatarBadge | null {
   const ok = ASSIGN_REQUIRED_PERMS.every(p => permissions.includes(p))
+  if (!ok) return null
   return {
     key: 'assign-qualified',
-    content: ok ? <Check className="w-full h-full p-0.5" /> : <X className="w-full h-full p-0.5" />,
+    content: <Check className="w-full h-full p-0.5" />,
     position: 'bottom-left',
-    bgColor: ok ? '#d5e8d4' : '#f3f4f6',
-    textColor: ok ? '#16a34a' : '#9ca3af',
-    tooltip: ok ? 'مؤهل للتكليف' : 'غير مؤهل للتكليف',
+    bgColor: '#d5e8d4',
+    textColor: '#16a34a',
+    tooltip: 'مؤهل للتكليف',
   }
 }
 
@@ -96,7 +97,7 @@ export function notificationBadge(count: number): AvatarBadge | null {
   if (count === 0) return null
   return {
     key: 'notifications',
-    content: <Bell className="w-full h-full p-0.5" />,
+    content: <span>{count}</span>,
     position: 'top-right',
     size: 20,
     bgColor: '#6366f1',
@@ -108,7 +109,7 @@ export function notificationBadge(count: number): AvatarBadge | null {
 export function onlineBadge(online: boolean): AvatarBadge {
   return {
     key: 'online',
-    content: <div className={`w-full h-full rounded-full ${online ? 'bg-green-500' : 'bg-gray-300'}`} />,
+    content: <div className={`w-full h-full rounded-full ${online ? 'bg-green-500' : 'bg-red-400'}`} />,
     position: 'bottom-right',
     size: 12,
     tooltip: online ? 'متصل' : 'غير متصل',
