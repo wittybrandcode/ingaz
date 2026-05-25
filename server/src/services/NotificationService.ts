@@ -232,6 +232,7 @@ export class NotificationService extends BaseService {
 
   async create(data: {
     userId: number
+    fromUserId?: number
     title: string
     message?: string
     type: string
@@ -241,6 +242,7 @@ export class NotificationService extends BaseService {
     if (!await this.isEnabled(data.userId, data.type)) return null
     await this.db.insert(schema.notifications).values({
       userId: data.userId,
+      fromUserId: data.fromUserId ?? null,
       title: data.title,
       message: data.message ?? null,
       type: data.type,
@@ -259,6 +261,7 @@ export class NotificationService extends BaseService {
 
   async createMany(items: {
     userId: number
+    fromUserId?: number
     title: string
     message?: string
     type: string
@@ -275,6 +278,7 @@ export class NotificationService extends BaseService {
     await this.db.insert(schema.notifications).values(
       enabledItems.map(item => ({
         userId: item.userId,
+        fromUserId: item.fromUserId ?? null,
         title: item.title,
         message: item.message ?? null,
         type: item.type,

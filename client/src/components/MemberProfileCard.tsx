@@ -1,5 +1,5 @@
 import { useMemberStore, type MemberProfile } from '../store/memberStore'
-import ProfileAvatar, { warningsBadge } from './ProfileAvatar'
+import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, assignBadge } from './ProfileAvatar'
 import { Users } from 'lucide-react'
 
 export default function MemberProfileCard({ member }: { member: MemberProfile }) {
@@ -22,15 +22,15 @@ export default function MemberProfileCard({ member }: { member: MemberProfile })
           avatar={member.avatar}
           size="md"
           badges={[
+            notificationBadge(member.unread_count),
             warningsBadge(member.warnings_count),
-          ]}
+            assignBadge([]),
+            onlineBadge(member.online),
+          ].filter(Boolean) as any}
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">
             {member.name}
-            {member.online && (
-              <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1.5 animate-pulse" title="متصل" />
-            )}
           </p>
           <p className="text-xs text-gray-500 truncate">{member.role_name || '—'}</p>
           <div className="flex items-center gap-3 mt-1">

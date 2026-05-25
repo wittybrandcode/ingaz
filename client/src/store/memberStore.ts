@@ -15,6 +15,7 @@ export interface MemberProfile {
   projects_count: number
   can_assign: boolean
   online: boolean
+  unread_count: number
 }
 
 interface MemberStore {

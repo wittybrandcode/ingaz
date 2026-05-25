@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import api from '../lib/api'
 import type { MemberProfile } from '../store/memberStore'
-import ProfileAvatar, { warningsBadge } from './ProfileAvatar'
+import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, assignBadge } from './ProfileAvatar'
 import { X, Loader2, ListTodo, FolderKanban, AlertTriangle, Clock, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
@@ -47,7 +47,12 @@ export default function MemberDetailModal({ member, onClose }: MemberDetailModal
           <>
             <div className="sticky top-0 bg-white z-10 flex items-center justify-between p-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <ProfileAvatar name={member.name} avatar={member.avatar} size="lg" badges={[warningsBadge(member.warnings_count)]} />
+                <ProfileAvatar name={member.name} avatar={member.avatar} size="lg" badges={[
+                  notificationBadge(member.unread_count),
+                  warningsBadge(member.warnings_count),
+                  assignBadge([]),
+                  onlineBadge(member.online),
+                ].filter(Boolean) as any} />
                 <div>
                   <h3 className="font-semibold text-gray-900">{member.name}</h3>
                   <p className="text-sm text-gray-500">{member.role_name || '—'}</p>

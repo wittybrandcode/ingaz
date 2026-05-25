@@ -4,8 +4,8 @@ import { memberService, AppError } from '../services/index.js'
 
 const router = Router()
 
-router.get('/', authenticate, async (_req: any, res: any) => {
-  const result = await memberService.list()
+router.get('/', authenticate, async (req: any, res: any) => {
+  const result = await memberService.list(req.user.id)
   res.success(result)
 })
 

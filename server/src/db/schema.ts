@@ -106,6 +106,7 @@ export const subtaskAssignees = pgTable('subtask_assignees', {
 export const notifications = pgTable('notifications', {
   id: serial('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  fromUserId: integer('from_user_id').references(() => users.id, { onDelete: 'set null' }),
   title: text('title').notNull(),
   message: text('message'),
   type: text('type').default('info'),

@@ -22,6 +22,13 @@
       "when": 1779564150528,
       "tag": "0002_flat_christian_walker",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779730163443,
+      "tag": "0003_hesitant_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

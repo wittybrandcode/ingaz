@@ -15,6 +15,7 @@ export interface MemberProfile {
   warnings_count: number
   projects_count: number
   can_assign: boolean
+  unread_count: number
 }
 
 export interface MemberActiveTask {
@@ -34,7 +35,7 @@ export interface MemberActivity {
 }
 
 export class MemberService extends BaseService {
-  async list(): Promise<MemberProfile[]> {
+  async list(currentUserId?: number): Promise<MemberProfile[]> {
     const rows = await this.db.execute(sql`
       SELECT
         u.id, u.name, u.email, u.avatar, u.is_manager,
@@ -61,7 +62,12 @@ export class MemberService extends BaseService {
             AND rp.permission_key IN ('tasks.assign', 'subtasks.assign', 'projects.assign')
           ),
           false
-        ) AS can_assign
+        ) AS can_assign,
+        COALESCE(
+          (SELECT COUNT(*) FROM notifications n
+           WHERE n.from_user_id = u.id AND n.user_id = ${currentUserId ?? 0} AND n.read = 0),
+          0
+        ) AS unread_count
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
       WHERE u.status = 'active' AND COALESCE(u.is_manager, 0) = 0

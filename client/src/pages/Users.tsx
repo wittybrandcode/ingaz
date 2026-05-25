@@ -206,7 +206,7 @@ export default function Users() {
                   <>
                     <td className="p-3">
                       <div className="flex items-center gap-2">
-                        <ProfileAvatar name={u.name} avatar={u.avatar} size="sm" badges={[assignBadge(u.permissions), warningsBadge(u.warnings ?? 0)]} />
+                        <ProfileAvatar name={u.name} avatar={u.avatar} size="sm" badges={[assignBadge(u.permissions), warningsBadge(u.warnings ?? 0)].filter(Boolean) as any} />
                         <span className="font-medium text-gray-900">{u.name}</span>
                       </div>
                     </td>
@@ -276,7 +276,7 @@ export default function Users() {
 
             <form onSubmit={handleIssueWarning} className="p-5 space-y-4">
               <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
-                <ProfileAvatar name={warningTarget.name} avatar={warningTarget.avatar} size="md" />
+                <ProfileAvatar name={warningTarget.name} avatar={warningTarget.avatar} size="md" badges={[warningsBadge(warningTarget.warnings ?? 0), assignBadge(warningTarget.permissions)].filter(Boolean) as any} />
                 <div>
                   <p className="font-semibold text-gray-900">{warningTarget.name}</p>
                   <p className="text-xs text-gray-500">{warningTarget.email}</p>

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, X, Bell } from 'lucide-react'
 import Avatar from './Avatar'
 import { ASSIGN_REQUIRED_PERMS } from '../constants'
 
@@ -78,16 +78,40 @@ export function assignBadge(permissions: string[] = []): AvatarBadge {
   }
 }
 
-export function warningsBadge(count: number): AvatarBadge {
-  const color = count === 0 ? '#22c55e' : count <= 2 ? '#eab308' : '#ef4444'
+export function warningsBadge(count: number): AvatarBadge | null {
+  if (count === 0) return null
+  const color = count <= 2 ? '#eab308' : '#ef4444'
   return {
     key: 'warnings',
     content: <span>{count}</span>,
-    position: 'top-right',
+    position: 'top-left',
     size: 20,
     bgColor: color,
     textColor: '#fff',
     tooltip: `التنبيهات: ${count}`,
+  }
+}
+
+export function notificationBadge(count: number): AvatarBadge | null {
+  if (count === 0) return null
+  return {
+    key: 'notifications',
+    content: <Bell className="w-full h-full p-0.5" />,
+    position: 'top-right',
+    size: 20,
+    bgColor: '#6366f1',
+    textColor: '#fff',
+    tooltip: `الإشعارات: ${count}`,
+  }
+}
+
+export function onlineBadge(online: boolean): AvatarBadge {
+  return {
+    key: 'online',
+    content: <div className={`w-full h-full rounded-full ${online ? 'bg-green-500' : 'bg-gray-300'}`} />,
+    position: 'bottom-right',
+    size: 12,
+    tooltip: online ? 'متصل' : 'غير متصل',
   }
 }
 
