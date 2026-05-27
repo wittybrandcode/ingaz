@@ -17,6 +17,11 @@ const run = async (q: string, ...params: unknown[]) => {
 }
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' && !process.argv.includes('--force')) {
+    console.error('🚫 لا يمكن تشغيل seed في بيئة الإنتاج. استخدم --force لتجاوز هذا التحذير.')
+    process.exit(1)
+  }
+
   pool = getPool()
 
   console.log('\n🌱 بذور شاملة لتطبيق إنجاز\n')

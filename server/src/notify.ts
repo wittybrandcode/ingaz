@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { getDb, schema } from './db/index.js'
 
 export async function setDefaultPrefs(userId: number, tx?: any) {
@@ -18,21 +18,22 @@ export async function setDefaultPrefs(userId: number, tx?: any) {
 
 export async function parseMentions(text: string) {
   const regex = /@([^@\s]+(?:\s+[^@\s]+)*)/g
-  const mentions: number[] = []
+  const names: string[] = []
   let match: RegExpExecArray | null
   while ((match = regex.exec(text)) !== null) {
-    const name = match[1].trim()
-    const rows = await getDb()
-      .select({ id: schema.users.id })
-      .from(schema.users)
-      .where(
-        and(
-          eq(schema.users.name, name),
-          eq(schema.users.status, 'active'),
-        )
-      )
-      .limit(1)
-    if (rows.length > 0) mentions.push(rows[0].id)
+    names.push(match[1].trim())
   }
-  return [...new Set(mentions)]
+  if (names.length === 0) return []
+
+  const uniqueNames = [...new Set(names)]
+  const rows: any[] = await getDb()
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(
+      and(
+        inArray(schema.users.name, uniqueNames),
+        eq(schema.users.status, 'active'),
+      )
+    )
+  return rows.map((r: any) => r.id)
 }
