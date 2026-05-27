@@ -349,10 +349,11 @@ async function sendDailySummaries() {
 }
 
 const INTERVAL_1MIN = 60000;
+const INTERVAL_10MIN = 600000;
 
 bgService.register({ type: 'checkDeadlines', intervalMs: INTERVAL_1MIN, execute: () => deadlineService.checkDeadlines(io) });
 bgService.register({ type: 'checkExpiredWarnings', intervalMs: INTERVAL_1MIN, execute: checkExpiredWarnings });
-bgService.register({ type: 'autoRecoverCredit', intervalMs: INTERVAL_1MIN, execute: autoRecoverCredit });
+bgService.register({ type: 'autoRecoverCredit', intervalMs: INTERVAL_10MIN, execute: autoRecoverCredit });
 bgService.register({ type: 'sendDailySummaries', intervalMs: 12 * 3600000, execute: sendDailySummaries });
 
 runMigrations().then(() => {

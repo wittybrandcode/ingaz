@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, count } from 'drizzle-orm'
 import { BaseService, AppError } from './BaseService.js'
 import { schema } from '../db/index.js'
 
@@ -36,7 +36,17 @@ export class RoleService extends BaseService {
   }
 
   async delete(id: number) {
-    if (id <= 3) throw new AppError(400, 'لا يمكن حذف الأدوار الافتراضية')
+    const [role] = await this.db.select({ id: schema.roles.id }).from(schema.roles).where(eq(schema.roles.id, id)).limit(1)
+    if (!role) throw new AppError(404, 'الدور غير موجود')
+
+    const [usersWithRole] = await this.db
+      .select({ count: count() })
+      .from(schema.users)
+      .where(eq(schema.users.roleId, id))
+    if (Number(usersWithRole?.count ?? 0) > 0) {
+      throw new AppError(400, 'لا يمكن حذف دور لا يزال لديه مستخدمين')
+    }
+
     await this.db.delete(schema.roles).where(eq(schema.roles.id, id))
     return { message: 'تم حذف الدور' }
   }

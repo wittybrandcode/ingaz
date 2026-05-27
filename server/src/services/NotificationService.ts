@@ -171,8 +171,6 @@ export class NotificationService extends BaseService {
   }
 
   async dailySummary(userId: number) {
-    const today = new Date().toISOString().split('T')[0]
-
     const pendingSubtasks = await this.db
       .select({
         id: schema.subtasks.id,
@@ -193,8 +191,13 @@ export class NotificationService extends BaseService {
       )
       .orderBy(schema.subtasks.deadline)
 
-    const overdue = pendingSubtasks.filter((s: any) => s.deadline && s.deadline < today)
-    const todayDue = pendingSubtasks.filter((s: any) => s.deadline && s.deadline.split('T')[0] === today)
+    const overdue = pendingSubtasks.filter((s: any) => s.deadline && new Date(s.deadline) < new Date())
+    const todayDue = pendingSubtasks.filter((s: any) => {
+      if (!s.deadline) return false
+      const d = new Date(s.deadline)
+      const n = new Date()
+      return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate()
+    })
 
     const [stats] = await this.db
       .select({
