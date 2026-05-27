@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
+import { toast } from '../components/Toast';
 
 const API_PREFIX = '/api/v1'
 const api = axios.create({ baseURL: API_PREFIX });
@@ -25,6 +26,8 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    const msg = err.response?.data?.error || err.response?.data?.message || err.message || 'خطأ في الاتصال';
+    if (err.response?.status !== 401) toast(msg, 'error');
     return Promise.reject(err);
   }
 );

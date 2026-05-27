@@ -41,10 +41,10 @@ function MemberDashboard() {
         api.get('/warnings/my-level').catch(() => ({ data: null })),
         api.get('/warnings/my').catch(() => ({ data: [] })),
       ])
-      setTasks(tasksRes.data || [])
-      setActivity(activityRes.data || [])
+      setTasks(tasksRes.data ?? [])
+      setActivity(activityRes.data ?? [])
       setCredit(creditRes.data)
-      setWarnings(warningsRes.data || [])
+      setWarnings(warningsRes.data ?? [])
     } catch { setError('فشل تحميل البيانات') }
     setLoading(false)
   }
@@ -199,7 +199,7 @@ export default function Dashboard() {
   const loadData = async () => {
     setLoading(true); setError('')
     try {
-      const { data: r } = await api.get<DashboardData>('/analytics/dashboard')
+      const { data: r } = await api.get('/analytics/dashboard')
       setData(r)
     } catch { setError('فشل تحميل البيانات') }
     setLoading(false)

@@ -57,7 +57,7 @@ export class UserService extends BaseService {
       warnings: warningMap.get(u.id) ?? 0,
     })))
 
-    return { data: camelToSnake(usersWithPerms), total, pages: Math.ceil(total / pageSize), page, pageSize }
+    return { data: usersWithPerms, total, pages: Math.ceil(total / pageSize), page, pageSize }
   }
 
   async create(data: { name: string; email: string; password: string; roleId: number; status?: string }, ctx: ServiceContext) {
@@ -69,39 +69,48 @@ export class UserService extends BaseService {
     if (existing) throw new AppError(409, 'هذا البريد غير متاح')
 
     const hash = bcrypt.hashSync(data.password, 10)
-    const [user] = await this.db.insert(schema.users).values({
-      name: data.name,
-      email: data.email,
-      password: hash,
-      roleId: data.roleId,
-      status: data.status || 'active',
-    }).returning({
-      id: schema.users.id,
-      name: schema.users.name,
-      email: schema.users.email,
-      roleId: schema.users.roleId,
-      status: schema.users.status,
-      avatar: schema.users.avatar,
+    let user: any
+    await this.db.transaction(async (tx: any) => {
+      const [u] = await tx.insert(schema.users).values({
+        name: data.name,
+        email: data.email,
+        password: hash,
+        roleId: data.roleId,
+        status: data.status || 'active',
+      }).returning({
+        id: schema.users.id,
+        name: schema.users.name,
+        email: schema.users.email,
+        roleId: schema.users.roleId,
+        status: schema.users.status,
+        avatar: schema.users.avatar,
+      })
+      user = u
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'create_user',
+        details: `أنشأ مستخدم "${data.name}"`,
+      })
+
+      await setDefaultPrefs(user.id, tx)
+
+      if (ctx.io) {
+        const notifService = new NotificationService(tx)
+        const allUsers = await tx
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .where(eq(schema.users.status, 'active'))
+        await notifService.createMany(
+          allUsers.map((u: any) => ({
+            userId: u.id,
+            title: `انضم عضو جديد: ${user.name}`,
+            type: 'user_joined',
+          })),
+          ctx.io,
+        )
+      }
     })
-
-    await addActivityLog(ctx.userId, 'create_user', `أنشأ مستخدم "${data.name}"`)
-    setDefaultPrefs(user.id)
-
-    if (ctx.io) {
-      const notifService = new NotificationService(this.db)
-      const allUsers = await this.db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(eq(schema.users.status, 'active'))
-      await notifService.createMany(
-        allUsers.map((u: any) => ({
-          userId: u.id,
-          title: `انضم عضو جديد: ${user.name}`,
-          type: 'user_joined',
-        })),
-        ctx.io,
-      )
-    }
 
     return user
   }

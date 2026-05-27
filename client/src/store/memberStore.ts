@@ -27,6 +27,7 @@ interface MemberStore {
   loadMembers: () => Promise<void>
   selectMember: (id: number | null) => void
   setOnline: (userId: number, online: boolean) => void
+  setMembers: (members: MemberProfile[]) => void
 }
 
 export const useMemberStore = create<MemberStore>((set) => ({
@@ -45,6 +46,7 @@ export const useMemberStore = create<MemberStore>((set) => ({
     }
   },
   selectMember: (id) => set({ selectedMemberId: id }),
+  setMembers: (members) => set({ members }),
   setOnline: (userId, online) => {
     set((s) => {
       const next = new Set(s.onlineUsers)

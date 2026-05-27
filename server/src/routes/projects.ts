@@ -25,14 +25,14 @@ function tryCatch(handler: (req: any, res: any) => Promise<any> | any) {
   }
 }
 
-router.get('/', authenticate, async (req: any, res: any) => {
+router.get('/', authenticate, tryCatch(async (req: any, res: any) => {
   const result = await projectService.list(parseInt(String(req.query.page)) || 1, parseInt(String(req.query.pageSize)))
   res.set('X-Total-Count', String(result.total))
   res.set('X-Total-Pages', String(result.pages))
   res.set('X-Page', String(result.page))
   res.set('X-Page-Size', String(result.pageSize))
   res.success(result.data)
-})
+}))
 
 router.post('/', authenticate, checkFrozen, authorizePermission('projects.create'), requireCredit('canCreateProjects'), validate(createProjectSchema), tryCatch(async (req, res) => {
   const project = await projectService.create(req.body, ctx(req))
@@ -49,13 +49,13 @@ router.get('/:id', authenticate, tryCatch(async (req, res) => {
   res.success(project)
 }))
 
-router.get('/:id/members', authenticate, async (req: any, res: any) => {
+router.get('/:id/members', authenticate, tryCatch(async (req: any, res: any) => {
   res.success(await projectService.getMembers(Number(req.params.id)))
-})
+}))
 
 router.post('/:id/members', authenticate, authorizePermission('projects.assign'), tryCatch(async (req, res) => {
   if (!req.body.user_id) return res.fail(400, 'يجب تحديد المستخدم')
-  const member = await projectService.addMember(Number(req.params.id), req.body.user_id, ctx(req))
+  const member = await projectService.addMember(Number(req.params.id), req.body.user_id, ctx(req), req.body.role)
   res.success(member, 201)
 }))
 

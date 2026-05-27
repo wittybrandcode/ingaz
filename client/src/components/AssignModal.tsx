@@ -25,8 +25,11 @@ export default function AssignModal({ member, onClose }: AssignModalProps) {
 
   useEffect(() => {
     if (!selectedProject) { setTasks([]); return }
-    api.get(`/tasks/project/${selectedProject}`).then(({ data }) => setTasks(data)).catch(() => {})
-  }, [selectedProject])
+    const endpoint = assignType === 'task'
+      ? `/tasks/project/${selectedProject}`
+      : `/subtasks/by-project/${selectedProject}`
+    api.get(endpoint).then(({ data }) => setTasks(data)).catch(() => {})
+  }, [selectedProject, assignType])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

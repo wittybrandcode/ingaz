@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderKanban, Users, Shield, AlertTriangle,
-  Settings, LogOut, UserCircle, Menu, X
+  Settings, LogOut, UserCircle, Menu, X, Wifi, WifiOff
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import { useMemberStore } from '../store/memberStore'
 import { useFocusTrap } from '../lib/useFocusTrap'
+import socket from '../lib/socket'
 import NotificationBell from './NotificationBell'
 import Avatar from './Avatar'
 
@@ -43,6 +45,35 @@ export default function TopBar() {
     }
     return () => { document.body.style.overflow = '' }
   }, [menuOpen])
+
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [isOnline, setIsOnline] = useState(user ? useMemberStore.getState().onlineUsers.has(user.id) : false)
+
+  useEffect(() => {
+    return useMemberStore.subscribe((s) => {
+      if (user) setIsOnline(s.onlineUsers.has(user.id))
+    })
+  }, [user])
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const toggleOnline = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const newStatus = !isOnline
+    socket.emit('user:status', newStatus)
+    useMemberStore.getState().setOnline(user!.id, newStatus)
+    setDropdownOpen(false)
+  }
+
+  useEffect(() => {
+    if (!dropdownOpen) return
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [dropdownOpen])
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -89,10 +120,43 @@ export default function TopBar() {
 
       <div className="flex items-center gap-3 shrink-0">
         <NotificationBell />
-        <button onClick={() => navigate('/profile')} className="flex items-center gap-2 cursor-pointer border-none bg-transparent">
-          <Avatar name={user?.name || 'U'} avatar={user?.avatar} size="sm" />
-          <span className="text-xs text-white/70 hidden md:inline">{user?.name}</span>
-        </button>
+        <div ref={dropdownRef} className="relative">
+          <button onClick={() => setDropdownOpen(p => !p)}
+            className="flex items-center gap-2 cursor-pointer border-none bg-transparent">
+            <Avatar name={user?.name || 'U'} avatar={user?.avatar} size="sm" />
+            <span className="text-xs text-white/70 hidden md:inline">{user?.name}</span>
+          </button>
+          {dropdownOpen && (
+            <div className="absolute left-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50 animate-fade-in">
+              <div className="px-4 py-2 border-b border-gray-100 mb-1">
+                <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
+                <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+              </div>
+              <button onClick={() => { navigate('/dashboard'); setDropdownOpen(false) }}
+                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-none bg-transparent cursor-pointer text-right">
+                <LayoutDashboard className="w-4 h-4 text-gray-400" />
+                لوحة التحكم
+              </button>
+              <button onClick={() => { navigate('/profile'); setDropdownOpen(false) }}
+                className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 border-none bg-transparent cursor-pointer text-right">
+                <UserCircle className="w-4 h-4 text-gray-400" />
+                الملف الشخصي
+              </button>
+              <div className="border-t border-gray-100 my-1" />
+              <button onClick={toggleOnline}
+                className="flex items-center gap-3 w-full px-4 py-2 text-sm border-none bg-transparent cursor-pointer text-right">
+                {isOnline ? (
+                  <Wifi className="w-4 h-4 text-green-500" />
+                ) : (
+                  <WifiOff className="w-4 h-4 text-red-400" />
+                )}
+                <span className={isOnline ? 'text-green-600' : 'text-red-500'}>
+                  {isOnline ? 'متصل' : 'غير متصل'}
+                </span>
+              </button>
+            </div>
+          )}
+        </div>
         <button onClick={handleLogout} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer border-none bg-transparent" title="تسجيل الخروج" aria-label="تسجيل الخروج">
           <LogOut className="w-4 h-4 text-white/50" />
         </button>

@@ -36,7 +36,7 @@ export interface MemberActivity {
 
 export class MemberService extends BaseService {
   async list(currentUserId?: number): Promise<MemberProfile[]> {
-    const rows = await this.db.execute(sql`
+    const result = await this.db.execute(sql`
       SELECT
         u.id, u.name, u.email, u.avatar, u.is_manager,
         u.role_id, r.name AS role_name,
@@ -58,8 +58,9 @@ export class MemberService extends BaseService {
         COALESCE(
           EXISTS (
             SELECT 1 FROM role_permissions rp
+            JOIN permissions p ON rp.permission_id = p.id
             WHERE rp.role_id = u.role_id
-            AND rp.permission_key IN ('tasks.assign', 'subtasks.assign', 'projects.assign')
+            AND p.key IN ('tasks.assign', 'subtasks.assign', 'projects.assign')
           ),
           false
         ) AS can_assign,
@@ -70,15 +71,15 @@ export class MemberService extends BaseService {
         ) AS unread_count
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.status = 'active' AND COALESCE(u.is_manager, 0) = 0
+      WHERE u.status = 'active'
       ORDER BY u.name
     `)
 
-    return rows as unknown as MemberProfile[]
+    return (result as any).rows as MemberProfile[]
   }
 
   async getActiveTasks(userId: number): Promise<MemberActiveTask[]> {
-    const rows = await this.db.execute(sql`
+    const result = await this.db.execute(sql`
       SELECT DISTINCT ON (s.id)
         s.id, s.title, s.status, s.deadline,
         p.title AS project_title, p.id AS project_id
@@ -91,11 +92,11 @@ export class MemberService extends BaseService {
       ORDER BY s.id, s.created_at DESC
     `)
 
-    return rows as unknown as MemberActiveTask[]
+    return (result as any).rows as MemberActiveTask[]
   }
 
   async getActivity(userId: number, limit = 10): Promise<MemberActivity[]> {
-    const rows = await this.db.execute(sql`
+    const result = await this.db.execute(sql`
       SELECT id, action, details, created_at
       FROM activity_logs
       WHERE user_id = ${userId}
@@ -103,6 +104,6 @@ export class MemberService extends BaseService {
       LIMIT ${limit}
     `)
 
-    return rows as unknown as MemberActivity[]
+    return (result as any).rows as MemberActivity[]
   }
 }

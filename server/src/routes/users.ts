@@ -25,14 +25,14 @@ function tryCatch(handler: (req: any, res: any) => any) {
   }
 }
 
-router.get('/', authenticate, async (req: any, res: any) => {
+router.get('/', authenticate, tryCatch(async (req: any, res: any) => {
   const result = await userService.list(parseInt(String(req.query.page)) || 1, parseInt(String(req.query.pageSize)), String(req.query.archived) === '1')
   res.set('X-Total-Count', String(result.total))
   res.set('X-Total-Pages', String(result.pages))
   res.set('X-Page', String(result.page))
   res.set('X-Page-Size', String(result.pageSize))
   res.success(result.data)
-})
+}))
 
 router.post('/', authenticate, requireManager, validate(createUserSchema), tryCatch(async (req, res) => {
   const user = await userService.create(req.body, ctx(req))

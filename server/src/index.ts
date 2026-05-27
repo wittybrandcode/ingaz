@@ -10,8 +10,8 @@ import pino from 'pino';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
-import { eq, and, lte, sql } from 'drizzle-orm';
-import { ROLES, CREDIT } from './constants.js';
+import { eq, and, sql } from 'drizzle-orm';
+import { CREDIT } from './constants.js';
 import { getDb, schema } from './db/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestId } from './middleware/requestId.js';
@@ -21,6 +21,7 @@ import { NotificationService } from './services/NotificationService.js';
 const notifService = new NotificationService(getDb())
 import { runMigrations } from './migrate.js';
 import { camelToSnake } from './lib/case-transform.js';
+import { onlineUsers } from './lib/onlineUsers.js';
 import { DeadlineService } from './services/DeadlineService.js';
 import { BackgroundJobService } from './services/BackgroundJobService.js';
 
@@ -174,7 +175,7 @@ io.use(async (socket, next) => {
   } catch { next(new Error('Invalid token')); }
 });
 
-const onlineUsers = new Set<number>()
+// onlineUsers is imported from ./lib/onlineUsers.js
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id, 'User:', socket.data.user?.id);
@@ -187,8 +188,19 @@ io.on('connection', (socket) => {
   socket.on('join:user', (userId) => {
     if (socket.data.user?.id === userId) {
       socket.join(`user:${userId}`);
-      // Send current online list to the newly connected client
       socket.emit('online:list', Array.from(onlineUsers));
+    }
+  });
+
+  socket.on('user:status', (online: boolean) => {
+    if (uid) {
+      if (online) {
+        onlineUsers.add(uid);
+        socket.broadcast.emit('user:online', uid);
+      } else {
+        onlineUsers.delete(uid);
+        socket.broadcast.emit('user:offline', uid);
+      }
     }
   });
   socket.on('disconnect', () => {
@@ -322,13 +334,15 @@ async function sendDailySummaries() {
     .select({ id: schema.users.id })
     .from(schema.users)
     .where(eq(schema.users.status, 'active'))
-  for (const u of activeUsers) {
-    await notifService.create({
-      userId: u.id,
-      type: 'daily_summary',
-      title: 'ملخصك اليومي متوفر',
-      message: 'يمكنك الاطلاع على المهام المعلقة والمواعيد النهائية من لوحة التحكم',
-    })
+  if (activeUsers.length > 0) {
+    await notifService.createMany(
+      activeUsers.map((u: any) => ({
+        userId: u.id,
+        type: 'daily_summary' as const,
+        title: 'ملخصك اليومي متوفر',
+        message: 'يمكنك الاطلاع على المهام المعلقة والمواعيد النهائية من لوحة التحكم',
+      })),
+    )
   }
 }
 

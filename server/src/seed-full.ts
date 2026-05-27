@@ -2,8 +2,7 @@ import 'dotenv/config'
 import bcrypt from 'bcryptjs'
 import fs from 'fs'
 import path from 'path'
-import { getDb, getPool } from './db/index.js'
-import { sql } from 'drizzle-orm'
+import { getPool } from './db/index.js'
 import { ROLES } from './constants.js'
 
 let pool: any
@@ -49,7 +48,7 @@ async function main() {
 
   await run('INSERT INTO roles (id, name) VALUES ($1, $2)', ROLES.ADMIN, 'admin')
   await run('INSERT INTO roles (id, name) VALUES ($1, $2)', 2, 'deputy')
-  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', 2, 'employee')
+  await run('INSERT INTO roles (id, name) VALUES ($1, $2)', 3, 'employee')
 
   const insLevelSql =
     'INSERT INTO restriction_levels (name, name_ar, min_score, color, icon, show_banner, can_login, can_create_projects, can_create_tasks, can_edit, can_assign, can_submit, can_comment, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)'

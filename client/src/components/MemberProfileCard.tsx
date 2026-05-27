@@ -1,8 +1,9 @@
+import { memo } from 'react'
 import { useMemberStore, type MemberProfile } from '../store/memberStore'
 import ProfileAvatar, { warningsBadge, notificationBadge, onlineBadge, canAssignBadge } from './ProfileAvatar'
 import { Users } from 'lucide-react'
 
-export default function MemberProfileCard({ member }: { member: MemberProfile }) {
+const MemberProfileCard = memo(function MemberProfileCard({ member }: { member: MemberProfile }) {
   const selectedMemberId = useMemberStore(s => s.selectedMemberId)
   const selectMember = useMemberStore(s => s.selectMember)
   const isSelected = selectedMemberId === member.id
@@ -20,7 +21,7 @@ export default function MemberProfileCard({ member }: { member: MemberProfile })
         <ProfileAvatar
           name={member.name}
           avatar={member.avatar}
-          size="md"
+          size="xl"
           badges={[
             notificationBadge(member.unread_count),
             warningsBadge(member.warnings_count),
@@ -46,4 +47,6 @@ export default function MemberProfileCard({ member }: { member: MemberProfile })
       </div>
     </button>
   )
-}
+})
+
+export default MemberProfileCard

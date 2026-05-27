@@ -27,22 +27,26 @@ const avatarPixels: Record<string, number> = {
   xs: 20, sm: 24, md: 32, lg: 40, xl: 56,
 }
 
-const positionStyles: Record<BadgePosition, { top?: string; right?: string; bottom?: string; left?: string }> = {
-  'top-right': { top: '-4px', right: '-4px' },
-  'bottom-right': { bottom: '-4px', right: '-4px' },
-  'bottom-left': { bottom: '-4px', left: '-4px' },
-  'top-left': { top: '-4px', left: '-4px' },
+function badgeOffset(bSize: number): { top?: string; right?: string; bottom?: string; left?: string } {
+  const off = `${-Math.round(bSize * 0.55)}px`
+  return { top: off, right: off }
 }
 
 export default function ProfileAvatar({ name, avatar, size = 'md', badges = [], className = '' }: ProfileAvatarProps) {
   const avatarSize = avatarPixels[size] || 32
-  const defaultBadgeSize = Math.max(14, Math.round(avatarSize * 0.4))
+  const defaultBadgeSize = Math.max(14, Math.round(avatarSize * 0.35))
 
   return (
-    <div className={`relative inline-flex shrink-0 ${className}`} style={{ width: avatarSize, height: avatarSize }}>
+    <div className={`relative inline-flex shrink-0 ${className}`}>
       <Avatar name={name} avatar={avatar} size={size} />
       {badges.map(b => {
         const bSize = b.size ?? defaultBadgeSize
+        const pos = b.position
+        let offset: { top?: string; right?: string; bottom?: string; left?: string }
+        if (pos === 'top-right') offset = { top: badgeOffset(bSize).top, right: badgeOffset(bSize).right }
+        else if (pos === 'bottom-right') offset = { bottom: badgeOffset(bSize).top, right: badgeOffset(bSize).right }
+        else if (pos === 'bottom-left') offset = { bottom: badgeOffset(bSize).top, left: badgeOffset(bSize).right }
+        else offset = { top: badgeOffset(bSize).top, left: badgeOffset(bSize).right }
         return (
           <div
             key={b.key}
@@ -54,7 +58,7 @@ export default function ProfileAvatar({ name, avatar, size = 'md', badges = [], 
               fontSize: Math.max(8, Math.round(bSize * 0.45)),
               backgroundColor: b.bgColor || '#e1d5e7',
               color: b.textColor || '#7c3aed',
-              ...positionStyles[b.position],
+              ...offset,
             }}
             className="rounded-full flex items-center justify-center font-bold border-2 border-white shadow-sm"
           >
@@ -86,7 +90,7 @@ export function canAssignBadge(canAssign: boolean): AvatarBadge | null {
 }
 
 export function warningsBadge(count: number | undefined): AvatarBadge | null {
-  if (!count) return null
+  if (!count || count <= 0) return null
   const color = count <= 2 ? '#eab308' : '#ef4444'
   return {
     key: 'warnings',
@@ -100,7 +104,7 @@ export function warningsBadge(count: number | undefined): AvatarBadge | null {
 }
 
 export function notificationBadge(count: number | undefined): AvatarBadge | null {
-  if (!count) return null
+  if (Number(count) <= 0) return null
   return {
     key: 'notifications',
     content: <span>{count}</span>,

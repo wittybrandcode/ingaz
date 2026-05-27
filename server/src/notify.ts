@@ -1,12 +1,13 @@
 import { eq, and } from 'drizzle-orm'
 import { getDb, schema } from './db/index.js'
 
-export async function setDefaultPrefs(userId: number) {
-  const types = await getDb()
+export async function setDefaultPrefs(userId: number, tx?: any) {
+  const db = tx || getDb()
+  const types = await db
     .select({ typeKey: schema.notificationTypes.typeKey, defaultEnabled: schema.notificationTypes.defaultEnabled })
     .from(schema.notificationTypes)
   for (const t of types) {
-    await getDb().insert(schema.notificationPreferences).values({
+    await db.insert(schema.notificationPreferences).values({
       userId,
       notificationType: t.typeKey,
       enabled: t.defaultEnabled,

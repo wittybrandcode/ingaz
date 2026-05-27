@@ -6,6 +6,7 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import AssigneePicker from './AssigneePicker'
 import TiptapEditor from './TiptapEditor'
 import { sanitizeHTML } from '../lib/sanitize'
+import { exportToCSV } from '../lib/exportToCSV'
 import type { Project, ProjectMember, Attachment, Task, Subtask } from '../types'
 import { useAuthStore } from '../store/authStore'
 import { useAppStore } from '../store/appStore'
@@ -106,17 +107,7 @@ export default function ProjectSettingsModal({ project, onClose, onUpdate, onDel
         }
       }
 
-      const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
-      const bom = '\uFEFF'
-      const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${project.title.replace(/\s+/g, '_')}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      exportToCSV(rows, `${project.title.replace(/\s+/g, '_')}.csv`)
       toast('تم تصدير CSV')
     } catch { toast('فشل التصدير', 'error') } finally { setExporting(false) }
   }

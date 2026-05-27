@@ -21,7 +21,8 @@ export default function MemberList() {
 
   useEffect(() => { loadMembers() }, [])
 
-  const selectedMember = members.find(m => m.id === selectedMemberId)
+  const otherMembers = user ? members.filter(m => m.id !== user.id) : members
+  const selectedMember = otherMembers.find(m => m.id === selectedMemberId)
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -36,7 +37,7 @@ export default function MemberList() {
         </button>
       </div>
 
-      {loading && members.length === 0 ? (
+      {loading && otherMembers.length === 0 && members.length === 0 ? (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
         </div>
@@ -45,11 +46,11 @@ export default function MemberList() {
           <AlertCircle className="w-6 h-6 text-red-400" />
           <p className="text-sm text-gray-500">{error}</p>
         </div>
-      ) : members.length === 0 ? (
+      ) : otherMembers.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-6">لا يوجد أعضاء</p>
       ) : (
         <div className="space-y-2 max-h-[360px] overflow-y-auto overscroll-contain">
-          {members.map(m => (
+          {otherMembers.map(m => (
             <MemberProfileCard key={m.id} member={m} />
           ))}
         </div>

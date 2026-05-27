@@ -44,7 +44,17 @@ export class AuthService extends BaseService {
       throw new AppError(401, 'بيانات الدخول غير صحيحة')
     }
 
-    setDefaultPrefs(user.id)
+    await this.db.transaction(async (tx: any) => {
+      await setDefaultPrefs(user.id, tx)
+      if (io) {
+        const notifService = new NotificationService(tx)
+        await notifService.create({
+          userId: user.id,
+          title: 'تم تسجيل دخول جديد إلى حسابك',
+          type: 'new_login',
+        }, io)
+      }
+    })
 
     const token = generateToken({
       id: user.id,
@@ -54,19 +64,11 @@ export class AuthService extends BaseService {
       role_id: user.roleId,
       is_manager: user.isManager,
     })
-    if (io) {
-      const notifService = new NotificationService(this.db)
-      await notifService.create({
-        userId: user.id,
-        title: 'تم تسجيل دخول جديد إلى حسابك',
-        type: 'new_login',
-      }, io)
-    }
 
     const { password: _, ...userData } = user
     const permissions = await getUserPermissions(user.id)
 
-    return { user: camelToSnake({ ...userData, permissions }), token }
+    return { user: { ...userData, permissions }, token }
   }
 
   async me(userId: number) {
@@ -89,7 +91,7 @@ export class AuthService extends BaseService {
       .limit(1)
     if (!user) throw new AppError(404, 'المستخدم غير موجود')
     const permissions = await getUserPermissions(userId)
-    return camelToSnake({ ...user, permissions })
+    return { ...user, permissions }
   }
 
   async updateProfile(userId: number, data: { name?: string; password?: string; avatar?: string }, io?: any) {
@@ -102,16 +104,18 @@ export class AuthService extends BaseService {
 
     const passwordChanged = !!data.password
 
-    await this.db.update(schema.users).set(updates).where(eq(schema.users.id, userId))
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.users).set(updates).where(eq(schema.users.id, userId))
 
-    if (passwordChanged && io) {
-      const notifService = new NotificationService(this.db)
-      await notifService.create({
-        userId,
-        title: 'تم تغيير كلمة المرور الخاصة بك',
-        type: 'password_changed',
-      }, io)
-    }
+      if (passwordChanged && io) {
+        const notifService = new NotificationService(tx)
+        await notifService.create({
+          userId,
+          title: 'تم تغيير كلمة المرور الخاصة بك',
+          type: 'password_changed',
+        }, io)
+      }
+    })
 
     return { message: 'تم تحديث الملف الشخصي' }
   }

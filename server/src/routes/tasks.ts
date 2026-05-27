@@ -53,7 +53,7 @@ router.put('/:id', authenticate, authorizePermission('tasks.edit'), checkFrozen,
   res.success(task)
 }))
 
-router.delete('/:id', authenticate, authorizePermission('tasks.delete'), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, authorizePermission('tasks.delete'), checkFrozen, tryCatch(async (req, res) => {
   const result = await taskService.archive(Number(req.params.id), ctx(req))
   res.success(result)
 }))
@@ -62,13 +62,13 @@ router.get('/:id/assignees', authenticate, async (req: any, res: any) => {
   res.success(await taskService.getAssignees(Number(req.params.id)))
 })
 
-router.post('/:id/assignees', authenticate, authorizePermission('tasks.assign'), tryCatch(async (req, res) => {
+router.post('/:id/assignees', authenticate, authorizePermission('tasks.assign'), checkFrozen, tryCatch(async (req, res) => {
   if (!req.body.user_id) return res.fail(400, 'يجب تحديد المستخدم')
   const assignee = await taskService.addAssignee(Number(req.params.id), req.body.user_id, ctx(req))
   res.success(assignee, 201)
 }))
 
-router.delete('/:id/assignees/:userId', authenticate, authorizePermission('tasks.assign'), tryCatch(async (req, res) => {
+router.delete('/:id/assignees/:userId', authenticate, authorizePermission('tasks.assign'), checkFrozen, tryCatch(async (req, res) => {
   const result = await taskService.removeAssignee(Number(req.params.id), Number(req.params.userId), ctx(req))
   res.success(result)
 }))

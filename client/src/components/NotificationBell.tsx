@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import api from '../lib/api'
 import socket from '../lib/socket'
+import { useNotifications } from '../lib/eventBus'
 import { useFocusTrap } from '../lib/useFocusTrap'
 import type { Notification } from '../types'
 
@@ -81,15 +82,11 @@ export default function NotificationBell() {
     return () => clearInterval(interval)
   }, [])
 
-  useEffect(() => {
-    const handler = (n: Notification) => {
-      if (!loadedRef.current) return
-      setNotifications(prev => [n, ...prev])
-      if (!n.read) setUnread(c => c + 1)
-    }
-    socket.on('notification', handler)
-    return () => { socket.off('notification', handler) }
-  }, [])
+  useNotifications((n) => {
+    if (!loadedRef.current) return
+    setNotifications(prev => [n as Notification, ...prev])
+    if (!(n as Notification).read) setUnread(c => c + 1)
+  })
 
   useEffect(() => {
     if (!open) return

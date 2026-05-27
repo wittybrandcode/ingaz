@@ -5,9 +5,8 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { PAGINATION, ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee, isProjectManager, getDb } from '../db/index.js'
+import { schema, addActivityLog, getSubtaskAssignees, getBulkSubtaskAssignees, isSubtaskAssignee, isProjectManager } from '../db/index.js'
 import { NotificationService } from './NotificationService.js'
-const notifService = new NotificationService(getDb())
 import { hasPermission } from '../middleware/auth.js'
 import { camelToSnake } from '../lib/case-transform.js'
 
@@ -23,6 +22,13 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 }
 
 export class SubtaskService extends BaseService {
+  private notifService: NotificationService
+
+  constructor(db: any, notifService?: NotificationService) {
+    super(db)
+    this.notifService = notifService || new NotificationService(db)
+  }
+
   private async getTaskCounts(taskId: number, tx: any = this.db) {
     const [row] = await tx
       .select({
@@ -147,6 +153,32 @@ export class SubtaskService extends BaseService {
     return { data: withAssignees, total, pages: Math.ceil(total / pageSize), page, pageSize }
   }
 
+  async listByProject(projectId: number) {
+    const subtasks = await this.db
+      .select({
+        id: schema.subtasks.id,
+        taskId: schema.subtasks.taskId,
+        title: schema.subtasks.title,
+        description: schema.subtasks.description,
+        assignedTo: schema.subtasks.assignedTo,
+        status: schema.subtasks.status,
+        deadline: schema.subtasks.deadline,
+        winnerCommentId: schema.subtasks.winnerCommentId,
+        createdAt: schema.subtasks.createdAt,
+        assignedToName: schema.users.name,
+        assignedToAvatar: schema.users.avatar,
+      })
+      .from(schema.subtasks)
+      .leftJoin(schema.users, eq(schema.subtasks.assignedTo, schema.users.id))
+      .innerJoin(schema.tasks, eq(schema.subtasks.taskId, schema.tasks.id))
+      .where(eq(schema.tasks.projectId, projectId))
+      .orderBy(sql`${schema.subtasks.createdAt} DESC`)
+
+    const ids = subtasks.map((s: any) => s.id)
+    const bulk = await getBulkSubtaskAssignees(ids)
+    return subtasks.map((s: any) => ({ ...s, assignees: bulk[s.id] || [] }))
+  }
+
   async listByTasks(taskIds: number[]) {
     if (taskIds.length === 0) return []
     const subtasks = await this.db
@@ -267,7 +299,7 @@ export class SubtaskService extends BaseService {
     }
 
     if (data.assigned_to && !ctx.isManager) {
-      if (!(await hasPermission(ctx.roleId, 'subtasks.assign'))) {
+      if (!(await hasPermission(ctx.roleId, 'subtasks.assign', ctx.userId))) {
         throw new AppError(403, 'لا تملك صلاحية تعيين المهام الفرعية')
       }
     }
@@ -306,7 +338,7 @@ export class SubtaskService extends BaseService {
 
     if (ctx.io) {
       if (data.assigned_to) {
-        notifService.create({
+        this.notifService.create({
           userId: data.assigned_to,
           type: 'subtask_assigned',
           title: `تم إسناد مهمة "${data.title}" لك`,
@@ -322,7 +354,7 @@ export class SubtaskService extends BaseService {
           .from(schema.projectMembers)
           .where(eq(schema.projectMembers.projectId, task.projectId))
         for (const m of projectMembers) recipients.add(m.userId)
-        notifService.createMany(
+        this.notifService.createMany(
           [...recipients].map(userId => ({
             userId,
             type: 'subtask_created',
@@ -348,7 +380,7 @@ export class SubtaskService extends BaseService {
     if (!oldSubtask) throw new AppError(404, 'المهمة الفرعية غير موجودة')
 
     if (data.assigned_to !== undefined && !ctx.isManager) {
-      if (!(await hasPermission(ctx.roleId, 'subtasks.assign'))) {
+      if (!(await hasPermission(ctx.roleId, 'subtasks.assign', ctx.userId))) {
         throw new AppError(403, 'لا تملك صلاحية تعيين المهام الفرعية')
       }
     }
@@ -450,7 +482,7 @@ export class SubtaskService extends BaseService {
             .select({ id: schema.users.id })
             .from(schema.users)
             .where(eq(schema.users.status, 'active'))
-          notifService.createMany(
+          this.notifService.createMany(
             allUsers.map((u: any) => ({
               userId: u.id,
               type: 'subtask_updated',
@@ -466,7 +498,7 @@ export class SubtaskService extends BaseService {
         if (data.status === 'deferred') {
           const subtaskAssignees = await getSubtaskAssignees(id)
           for (const a of subtaskAssignees) {
-            notifService.create({
+            this.notifService.create({
               userId: a.userId,
               type: 'subtask_deferred',
               title: 'تم تأجيل المهمة',
@@ -485,7 +517,7 @@ export class SubtaskService extends BaseService {
             .from(schema.users)
             .where(eq(schema.users.isManager, 1))
           for (const a of admins) recipients.add(a.id)
-          notifService.createMany(
+          this.notifService.createMany(
             [...recipients].map(userId => ({
               userId,
               type: 'in_progress',
@@ -503,7 +535,7 @@ export class SubtaskService extends BaseService {
             .select({ id: schema.users.id })
             .from(schema.users)
             .where(eq(schema.users.isManager, 1))
-          notifService.createMany(
+          this.notifService.createMany(
             admins.map((a: any) => ({
               userId: a.id,
               type: 'submitted',
@@ -517,7 +549,7 @@ export class SubtaskService extends BaseService {
         }
 
         if (data.status === 'approved' && subtask.assignedTo) {
-          notifService.create({
+          this.notifService.create({
             userId: subtask.assignedTo,
             type: 'approved',
             title: `قبول "${subtask.title}"`,
@@ -528,7 +560,7 @@ export class SubtaskService extends BaseService {
         }
 
         if (data.status === 'rejected' && subtask.assignedTo) {
-          notifService.create({
+          this.notifService.create({
             userId: subtask.assignedTo,
             type: 'rejected',
             title: `رفض "${subtask.title}"`,
@@ -541,7 +573,7 @@ export class SubtaskService extends BaseService {
         if (data.status === 'open' && oldSubtask.status === 'deferred') {
           const subtaskAssignees = await getSubtaskAssignees(id)
           for (const a of subtaskAssignees) {
-            notifService.create({
+            this.notifService.create({
               userId: a.userId,
               type: 'subtask_reactivated',
               title: 'تم إعادة فتح المهمة',
@@ -558,7 +590,7 @@ export class SubtaskService extends BaseService {
 
     if (data.deadline && oldSubtask.deadline && new Date(data.deadline) > new Date(oldSubtask.deadline) && subtask.assignedTo) {
       if (ctx.io) {
-        notifService.create({
+        this.notifService.create({
           userId: subtask.assignedTo, type: 'deadline_extended', title: `تم تمديد الموعد النهائي للمهمة: ${subtask.title}`,
           message: `تم تمديد الموعد النهائي للمهمة "${subtask.title}"`,
           relatedType: 'subtask', relatedId: subtask.id,
@@ -569,14 +601,14 @@ export class SubtaskService extends BaseService {
     if (data.assigned_to !== undefined && data.assigned_to !== oldSubtask?.assignedTo) {
       if (ctx.io) {
         if (data.assigned_to) {
-          notifService.create({
+          this.notifService.create({
             userId: data.assigned_to, type: 'subtask_assigned', title: `تم إسناد مهمة "${subtask.title}" لك`,
             message: `تم إسناد "${subtask.title}" إليك`,
             relatedType: 'subtask', relatedId: subtask.id,
           }, ctx.io)
         }
         if (oldSubtask?.assignedTo) {
-          notifService.create({
+          this.notifService.create({
             userId: oldSubtask.assignedTo, type: 'assignment_changed', title: 'تم تغيير المسؤول عن المهمة',
             message: `تم نقل "${subtask.title}" من "${ctx.userName}" إلى مستخدم آخر`,
             relatedType: 'subtask', relatedId: subtask.id,
@@ -707,7 +739,7 @@ export class SubtaskService extends BaseService {
         .limit(1)
 
       if (ctx.io) {
-        notifService.create({
+        this.notifService.create({
           userId, type: 'subtask_assigned', title: `تم إسناد مهمة "${subtask?.title}" لك`,
           message: `تم تكليفك في "${subtask?.title}" ضمن مهمة "${task?.taskTitle}" في "${task?.projectTitle}"`,
           relatedType: 'subtask', relatedId: subtaskId,
@@ -752,7 +784,7 @@ export class SubtaskService extends BaseService {
     })
 
     if (ctx.io) {
-      notifService.create({
+      this.notifService.create({
         userId, type: 'assignment_changed', title: 'تم إلغاء تكليفك',
         message: `تم إلغاء تكليفك من "${subtask?.title}"`,
         relatedType: 'subtask', relatedId: subtaskId,

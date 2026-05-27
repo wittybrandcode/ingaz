@@ -103,9 +103,10 @@ export class DeadlineService extends BaseService {
 
   private async tryInsert(subtaskId: number, reminderType: string): Promise<boolean> {
     try {
-      await this.db.insert(schema.deadlineReminders).values({ subtaskId, reminderType }).run()
+      await this.db.insert(schema.deadlineReminders).values({ subtaskId, reminderType })
       return true
-    } catch {
+    } catch (e) {
+      console.error('[DeadlineService] insert failed:', e)
       return false
     }
   }

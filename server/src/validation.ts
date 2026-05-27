@@ -5,9 +5,7 @@ const MAX_DESC = 5000;
 const MAX_EMAIL = 254;
 const MAX_PASSWORD = 128;
 const MAX_REASON = 2000;
-const MAX_NOTES = 2000;
 const MAX_TEXT = 2000;
-const MAX_LINK = 500;
 const MAX_STATUS = 50;
 const MAX_NAME = 200;
 

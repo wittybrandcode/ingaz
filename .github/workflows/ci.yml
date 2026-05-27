@@ -1,0 +1,67 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ingaz
+          POSTGRES_PASSWORD: ingaz
+          POSTGRES_DB: ingaz_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install server dependencies
+        run: cd server && npm ci
+
+      - name: Server typecheck
+        run: cd server && npm run typecheck
+
+      - name: Server lint
+        run: cd server && npm run lint
+
+      - name: Server tests
+        run: cd server && npm run test
+        env:
+          DATABASE_URL: postgres://ingaz:ingaz@localhost:5432/ingaz_test
+          JWT_SECRET: test-secret
+
+  client:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies
+        run: cd client && npm ci
+
+      - name: Client typecheck
+        run: cd client && npm run typecheck
+
+      - name: Client lint
+        run: cd client && npm run lint

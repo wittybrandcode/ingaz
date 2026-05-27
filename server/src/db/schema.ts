@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, timestamp, varchar, uniqueIndex, index, check, jsonb } from 'drizzle-orm/pg-core'
+import { pgTable, serial, integer, text, timestamp, uniqueIndex, index, check } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const roles = pgTable('roles', {

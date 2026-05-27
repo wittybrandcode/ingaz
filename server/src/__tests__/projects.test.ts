@@ -152,7 +152,7 @@ describe('ProjectService', () => {
     const members = await service.getMembers(10)
 
     expect(members).toHaveLength(1)
-    expect(members[0].user_id).toBe(3)
+    expect(members[0].userId).toBe(3)
   })
 
   it('addMember adds a member and removeMember removes them', async () => {
@@ -162,9 +162,9 @@ describe('ProjectService', () => {
     seedProject(db, { id: 10, created_by: 1 })
 
     const service = new ProjectService(db)
-    const member = await service.addMember(10, 3)
+    const member = await service.addMember(10, 3, undefined, 'manager')
 
-    expect(member.user_id).toBe(3)
+    expect(member.userId).toBe(3)
     expect(member.role).toBe('manager')
 
     const result = await service.removeMember(10, 3)

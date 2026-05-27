@@ -8,7 +8,7 @@ import { useTaskStore } from '../store/taskStore'
 import {
   ArrowRight, Edit3, Check, X, Loader2, AlertCircle
 } from 'lucide-react'
-import socket from '../lib/socket'
+import { useListUpdates, useSubtaskUpdates } from '../lib/eventBus'
 import FileUpload from '../components/FileUpload'
 import FilePreview from '../components/FilePreview'
 import TiptapEditor from '../components/TiptapEditor'
@@ -19,7 +19,7 @@ import { ProjectDetailSkeleton } from '../components/Skeleton'
 import { useToast } from '../components/Toast'
 import TaskList from '../components/ProjectDetail/TaskList'
 import SubtaskPanel from '../components/ProjectDetail/SubtaskPanel'
-import type { Task, Subtask, Attachment } from '../types'
+import type { Task, Attachment } from '../types'
 import { sanitizeHTML } from '../lib/sanitize'
 import { TICKET_STATUS_CONFIG as statusConfig } from '../statusConfig'
 
@@ -56,26 +56,21 @@ export default function ProjectDetail() {
 
   useEffect(() => { loadProject(Number(id)); loadUsers(); loadRoles() }, [id])
 
-  useEffect(() => {
-    const subtaskUpdated = (st: Subtask) => {
-      updateSubtaskStore(st.id, st)
+  useSubtaskUpdates((st) => updateSubtaskStore(st.id, st))
+
+  useListUpdates((msg) => {
+    const stId = selectedTaskRef.current
+    const d = msg.data as any
+    if (msg.type === 'task') {
+      if (msg.action === 'created') addTask(d)
+      else if (msg.action === 'updated') updateTask(d.id, d)
+      else if (msg.action === 'deleted') removeTask(d.id)
     }
-    const listHandler = (msg: { type: string; action: string; data: any }) => {
-      const stId = selectedTaskRef.current
-      if (msg.type === 'task') {
-        if (msg.action === 'created') addTask(msg.data)
-        else if (msg.action === 'updated') updateTask(msg.data.id, msg.data)
-        else if (msg.action === 'deleted') removeTask(msg.data.id)
-      }
-      if (msg.type === 'subtask' && stId) {
-        if (msg.action === 'created' && msg.data.task_id === stId) addSubtask(msg.data)
-        else if (msg.action === 'deleted') removeSubtask(msg.data.id)
-      }
+    if (msg.type === 'subtask' && stId) {
+      if (msg.action === 'created' && d.task_id === stId) addSubtask(d)
+      else if (msg.action === 'deleted') removeSubtask(d.id)
     }
-    socket.on('subtask:updated', subtaskUpdated)
-    socket.on('list:update', listHandler)
-    return () => { socket.off('subtask:updated', subtaskUpdated); socket.off('list:update', listHandler) }
-  }, [])
+  })
 
   const loadSubtasks = async (taskId: number) => {
     selectTask(taskId)

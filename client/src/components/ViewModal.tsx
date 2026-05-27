@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { X, ExternalLink, Settings, Calendar, User, ListTodo, CheckSquare, Clock, AlertCircle, CheckCircle2, XCircle, MessageSquare } from 'lucide-react'
 import api from '../lib/api'
+import { sanitizeHTML } from '../lib/sanitize'
 import { useFocusTrap } from '../lib/useFocusTrap'
 import Avatar from './Avatar'
 import StatsPill from './StatsPill'
@@ -34,7 +35,7 @@ function Description({ text }: { text?: string | null }) {
     <div className="bg-gray-50 rounded-xl p-4">
       <p className="text-xs text-gray-500 mb-1 font-medium">الوصف</p>
       <div className="text-sm text-gray-800 leading-relaxed [&_a]:text-indigo-600 [&_a]:underline"
-        dangerouslySetInnerHTML={{ __html: text }} />
+        dangerouslySetInnerHTML={{ __html: sanitizeHTML(text) }} />
     </div>
   )
 }

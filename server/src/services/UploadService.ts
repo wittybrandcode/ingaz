@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import { eq, and, inArray, sql } from 'drizzle-orm'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
@@ -157,7 +158,8 @@ export class UploadService extends BaseService {
 
     await this.db.delete(schema.attachments).where(eq(schema.attachments.id, fileId))
 
-    if (fs.existsSync(file.filename)) fs.unlinkSync(file.filename)
+    const filePath = path.join(process.cwd(), 'uploads', file.filename)
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
     return { message: 'تم حذف الملف' }
   }
 }

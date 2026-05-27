@@ -44,8 +44,14 @@ router.get('/task/:taskId', authenticate, async (req: any, res: any) => {
 })
 
 router.get('/by-tasks', authenticate, async (req: any, res: any) => {
+  if (!req.query.task_ids) return res.fail(400, 'task_ids required')
   const taskIds = String(req.query.task_ids).split(',').map(Number)
   const result = await subtaskService.listByTasks(taskIds)
+  res.success(result)
+})
+
+router.get('/by-project/:projectId', authenticate, async (req: any, res: any) => {
+  const result = await subtaskService.listByProject(Number(req.params.projectId))
   res.success(result)
 })
 
@@ -59,12 +65,12 @@ router.post('/', authenticate, checkFrozen, requireCredit('canCreateTasks'), val
   res.success(subtask, 201)
 }))
 
-router.put('/:id', authenticate, checkFrozen, validate(updateSubtaskSchema), tryCatch(async (req, res) => {
+router.put('/:id', authenticate, checkFrozen, authorizePermission('subtasks.edit'), requireCredit('canEdit'), validate(updateSubtaskSchema), tryCatch(async (req, res) => {
   const subtask = await subtaskService.update(Number(req.params.id), req.body, ctx(req))
   res.success(subtask)
 }))
 
-router.delete('/:id', authenticate, authorizePermission('subtasks.delete'), tryCatch(async (req, res) => {
+router.delete('/:id', authenticate, authorizePermission('subtasks.delete'), checkFrozen, tryCatch(async (req, res) => {
   const result = await subtaskService.delete(Number(req.params.id), ctx(req))
   res.success(result)
 }))
@@ -73,13 +79,13 @@ router.get('/:id/assignees', authenticate, async (req: any, res: any) => {
   res.success(await subtaskService.getAssignees(Number(req.params.id)))
 })
 
-router.post('/:id/assignees', authenticate, authorizePermission('subtasks.assign'), tryCatch(async (req, res) => {
+router.post('/:id/assignees', authenticate, authorizePermission('subtasks.assign'), checkFrozen, tryCatch(async (req, res) => {
   if (!req.body.user_id) return res.fail(400, 'يجب تحديد المستخدم')
   const assignee = await subtaskService.addAssignee(Number(req.params.id), req.body.user_id, ctx(req))
   res.success(assignee, 201)
 }))
 
-router.delete('/:id/assignees/:userId', authenticate, authorizePermission('subtasks.assign'), tryCatch(async (req, res) => {
+router.delete('/:id/assignees/:userId', authenticate, authorizePermission('subtasks.assign'), checkFrozen, tryCatch(async (req, res) => {
   const result = await subtaskService.removeAssignee(Number(req.params.id), Number(req.params.userId), ctx(req))
   res.success(result)
 }))

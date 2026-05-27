@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { MessageSquare, Star, Award, Loader2, Lock } from 'lucide-react'
 import api from '../lib/api'
 import { useAuthStore } from '../store/authStore'
-import socket from '../lib/socket'
+import { useComments, useWinnerSelected } from '../lib/eventBus'
 import Avatar from './Avatar'
 import TiptapEditor from './TiptapEditor'
 import FilePreview, { type FileItem } from './FilePreview'
@@ -48,23 +48,9 @@ export default function Comments({ subtaskId, winnerCommentId }: Props) {
 
   useEffect(() => { load() }, [subtaskId])
 
-  useEffect(() => {
-    const handler = (c: Comment) => {
-      if (c.subtask_id === subtaskId) {
-        setComments(prev => [...prev, c])
-      }
-    }
-    socket.on('comment:new', handler)
-    return () => { socket.off('comment:new', handler) }
-  }, [subtaskId])
+  useComments(subtaskId, (c) => setComments(prev => [...prev, c]), [])
 
-  useEffect(() => {
-    const handler = (_data: { commentId: number; subtaskId: number }) => {
-      load()
-    }
-    socket.on('comment:winner-selected', handler)
-    return () => { socket.off('comment:winner-selected', handler) }
-  }, [subtaskId])
+  useWinnerSelected(() => load(), [])
 
   const selectWinner = async (commentId: number) => {
     setSelectingWinner(commentId)

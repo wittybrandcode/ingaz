@@ -3,14 +3,20 @@ import { aliasedTable } from 'drizzle-orm'
 import { ROLES, PAGINATION, WARNING_DEADLINE_HOURS, CREDIT } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, getDb } from '../db/index.js'
+import { schema, addActivityLog } from '../db/index.js'
 import { NotificationService } from './NotificationService.js'
-const notifService = new NotificationService(getDb())
 import { getCreditLevel, clearFrozenCache } from '../middleware/auth.js'
 
 const issuer = aliasedTable(schema.users, 'issuer')
 
 export class WarningService extends BaseService {
+  private notifService: NotificationService
+
+  constructor(db: any, notifService?: NotificationService) {
+    super(db)
+    this.notifService = notifService || new NotificationService(db)
+  }
+
   private async autoFreezeCheck(userId: number, ctx: ServiceContext) {
     const level = await getCreditLevel(userId)
     if (level && level.name === 'frozen' && !level.canLogin) {
@@ -26,7 +32,7 @@ export class WarningService extends BaseService {
         }).where(eq(schema.users.id, userId))
         clearFrozenCache(userId)
         if (ctx.io) {
-          notifService.create({
+          this.notifService.create({
             userId, type: 'account_frozen', title: 'تم تجميد حسابك ❄️',
             message: 'وصل رصيد نقاطك إلى مستوى متدنٍ جداً. تم تجميد حسابك تلقائياً. يرجى التواصل مع المدير.',
             relatedType: undefined, relatedId: undefined,
@@ -253,50 +259,59 @@ export class WarningService extends BaseService {
     const creditBefore = user?.creditScore ?? 10
     const deadline = new Date(Date.now() + (data.deadline_hours || WARNING_DEADLINE_HOURS) * 3600000).toISOString()
 
-    const [warning]: any[] = await this.db.insert(schema.warnings).values({
-      userId: data.user_id,
-      issuedBy: ctx.userId,
-      reason: data.reason.trim(),
-      deadline,
-      warningTypeId: data.warning_type_id || null,
-      pointsDeducted: points,
-      creditBefore,
-      warningTypeName: typeName,
-    }).returning()
+    let enriched: any
+    await this.db.transaction(async (tx: any) => {
+      const [warning]: any[] = await tx.insert(schema.warnings).values({
+        userId: data.user_id,
+        issuedBy: ctx.userId,
+        reason: data.reason.trim(),
+        deadline,
+        warningTypeId: data.warning_type_id || null,
+        pointsDeducted: points,
+        creditBefore,
+        warningTypeName: typeName,
+      }).returning()
 
-    const [enriched]: any[] = await this.db
-      .select({
-        id: schema.warnings.id,
-        userId: schema.warnings.userId,
-        issuedBy: schema.warnings.issuedBy,
-        reason: schema.warnings.reason,
-        status: schema.warnings.status,
-        deadline: schema.warnings.deadline,
-        warningTypeId: schema.warnings.warningTypeId,
-        pointsDeducted: schema.warnings.pointsDeducted,
-        creditBefore: schema.warnings.creditBefore,
-        warningTypeName: schema.warnings.warningTypeName,
-        createdAt: schema.warnings.createdAt,
-        warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
-        warningTypePoints: schema.warningTypes.points,
-        issuedByName: issuer.name,
+      const [enrichedRow]: any[] = await tx
+        .select({
+          id: schema.warnings.id,
+          userId: schema.warnings.userId,
+          issuedBy: schema.warnings.issuedBy,
+          reason: schema.warnings.reason,
+          status: schema.warnings.status,
+          deadline: schema.warnings.deadline,
+          warningTypeId: schema.warnings.warningTypeId,
+          pointsDeducted: schema.warnings.pointsDeducted,
+          creditBefore: schema.warnings.creditBefore,
+          warningTypeName: schema.warnings.warningTypeName,
+          createdAt: schema.warnings.createdAt,
+          warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
+          warningTypePoints: schema.warningTypes.points,
+          issuedByName: issuer.name,
+        })
+        .from(schema.warnings)
+        .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
+        .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
+        .where(eq(schema.warnings.id, warning.id))
+        .limit(1)
+      enriched = enrichedRow
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'create_warning',
+        details: `أصدر إنذاراً بحق المستخدم ${data.user_id}: ${data.reason.trim()}`,
       })
-      .from(schema.warnings)
-      .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
-      .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
-      .where(eq(schema.warnings.id, warning.id))
-      .limit(1)
 
-    await addActivityLog(ctx.userId, 'create_warning', `أصدر إنذاراً بحق المستخدم ${data.user_id}: ${data.reason.trim()}`)
-
-    if (ctx.io) {
-      notifService.create({
-        userId: data.user_id, type: 'warning',
-        title: `إنذار ⚠️ (قد يخصم ${points} نقطة)`,
-        message: `تم إصدار إنذار بحقك: ${data.reason.trim()}\nيرجى الرد خلال ${data.deadline_hours || WARNING_DEADLINE_HOURS} ساعة`,
-        relatedType: 'warning', relatedId: warning.id,
-      }, ctx.io)
-    }
+      if (ctx.io) {
+        const notifTx = new NotificationService(tx)
+        await notifTx.create({
+          userId: data.user_id, type: 'warning',
+          title: `إنذار ⚠️ (قد يخصم ${points} نقطة)`,
+          message: `تم إصدار إنذار بحقك: ${data.reason.trim()}\nيرجى الرد خلال ${data.deadline_hours || WARNING_DEADLINE_HOURS} ساعة`,
+          relatedType: 'warning', relatedId: warning.id,
+        }, ctx.io)
+      }
+    })
 
     return enriched
   }
@@ -315,48 +330,57 @@ export class WarningService extends BaseService {
     if (!warning) throw new AppError(404, 'الإنذار غير موجود')
     if (warning.status !== 'pending') throw new AppError(400, 'تم الرد على هذا الإنذار مسبقاً')
 
-    await this.db.update(schema.warnings).set({
-      status: 'responded',
-      responseText: responseText.trim(),
-      respondedAt: new Date().toISOString(),
-    }).where(eq(schema.warnings.id, id))
+    let updated: any
+    await this.db.transaction(async (tx: any) => {
+      await tx.update(schema.warnings).set({
+        status: 'responded',
+        responseText: responseText.trim(),
+        respondedAt: new Date().toISOString(),
+      }).where(eq(schema.warnings.id, id))
 
-    const [updated]: any[] = await this.db
-      .select({
-        id: schema.warnings.id,
-        userId: schema.warnings.userId,
-        issuedBy: schema.warnings.issuedBy,
-        reason: schema.warnings.reason,
-        status: schema.warnings.status,
-        responseText: schema.warnings.responseText,
-        respondedAt: schema.warnings.respondedAt,
-        deadline: schema.warnings.deadline,
-        pointsDeducted: schema.warnings.pointsDeducted,
-        creditBefore: schema.warnings.creditBefore,
-        warningTypeName: schema.warnings.warningTypeName,
-        createdAt: schema.warnings.createdAt,
-        warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
-        userName: schema.users.name,
-        userAvatar: schema.users.avatar,
-        issuedByName: issuer.name,
-        issuedByAvatar: issuer.avatar,
+      const [updatedRow]: any[] = await tx
+        .select({
+          id: schema.warnings.id,
+          userId: schema.warnings.userId,
+          issuedBy: schema.warnings.issuedBy,
+          reason: schema.warnings.reason,
+          status: schema.warnings.status,
+          responseText: schema.warnings.responseText,
+          respondedAt: schema.warnings.respondedAt,
+          deadline: schema.warnings.deadline,
+          pointsDeducted: schema.warnings.pointsDeducted,
+          creditBefore: schema.warnings.creditBefore,
+          warningTypeName: schema.warnings.warningTypeName,
+          createdAt: schema.warnings.createdAt,
+          warningTypeNameFromWT: sql`COALESCE(${schema.warnings.warningTypeName}, ${schema.warningTypes.name})`,
+          userName: schema.users.name,
+          userAvatar: schema.users.avatar,
+          issuedByName: issuer.name,
+          issuedByAvatar: issuer.avatar,
+        })
+        .from(schema.warnings)
+        .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
+        .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
+        .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
+        .where(eq(schema.warnings.id, id))
+        .limit(1)
+      updated = updatedRow
+
+      await tx.insert(schema.activityLogs).values({
+        userId: ctx.userId,
+        action: 'respond_warning',
+        details: `رد على إنذار: ${responseText.trim().slice(0, 100)}`,
       })
-      .from(schema.warnings)
-      .leftJoin(schema.warningTypes, eq(schema.warnings.warningTypeId, schema.warningTypes.id))
-      .innerJoin(schema.users, eq(schema.warnings.userId, schema.users.id))
-      .innerJoin(issuer, eq(schema.warnings.issuedBy, issuer.id))
-      .where(eq(schema.warnings.id, id))
-      .limit(1)
 
-    await addActivityLog(ctx.userId, 'respond_warning', `رد على إنذار: ${responseText.trim().slice(0, 100)}`)
-
-    if (ctx.io) {
-      notifService.create({
-        userId: warning.issuedBy, type: 'warning_responded', title: 'رد على إنذار',
-        message: `${ctx.userName} رد على الإنذار: ${responseText.trim().slice(0, 100)}`,
-        relatedType: 'warning', relatedId: warning.id,
-      }, ctx.io)
-    }
+      if (ctx.io) {
+        const notifTx = new NotificationService(tx)
+        await notifTx.create({
+          userId: warning.issuedBy, type: 'warning_responded', title: 'رد على إنذار',
+          message: `${ctx.userName} رد على الإنذار: ${responseText.trim().slice(0, 100)}`,
+          relatedType: 'warning', relatedId: warning.id,
+        }, ctx.io)
+      }
+    })
 
     return updated
   }
@@ -417,7 +441,7 @@ export class WarningService extends BaseService {
     })
 
     if (ctx.io) {
-      notifService.create({
+      this.notifService.create({
         userId: warning.userId, type: 'warning_cleared', title: 'تم فك الإنذار ✓',
         message: `${ctx.userName} قبل بتقريرك وتمت استعادة ${warning.pointsDeducted} نقاط`,
         relatedType: 'warning', relatedId: warning.id,
@@ -480,7 +504,7 @@ export class WarningService extends BaseService {
     })
 
     if (ctx.io) {
-      notifService.create({
+      this.notifService.create({
         userId: warning.userId, type: 'warning_sustained',
         title: `تم خصم ${warning.pointsDeducted} نقاط من رصيدك`,
         message: `${ctx.userName} أبقى على الإنذار. رصيدك الحالي: ${newScore}/10`,
@@ -557,7 +581,7 @@ export class WarningService extends BaseService {
     await addActivityLog(ctx.userId, 'unfreeze_user', `فك تجميد المستخدم ${userId}`)
 
     if (ctx.io) {
-      notifService.create({
+      this.notifService.create({
         userId, type: 'account_unfrozen', title: 'تم فك تجميد حسابك ✅',
         message: `${ctx.userName} قام بفك تجميد حسابك ورد رصيدك إلى 5 نقاط`,
         relatedType: undefined, relatedId: undefined,

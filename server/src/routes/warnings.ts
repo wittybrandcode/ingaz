@@ -26,9 +26,9 @@ function tryCatch(handler: (req: any, res: any) => any) {
 }
 
 // Warning Types
-router.get('/types', authenticate, requireManager, async (req: any, res: any) => {
+router.get('/types', authenticate, requireManager, tryCatch(async (req: any, res: any) => {
   res.success(await warningService.listWarningTypes())
-})
+}))
 
 router.post('/types', authenticate, requireManager, validate(createWarningTypeSchema), tryCatch(async (req, res) => {
   const wt = await warningService.createWarningType(req.body)
@@ -39,52 +39,52 @@ router.put('/types/:id', authenticate, requireManager, validate(updateWarningTyp
   res.success(await warningService.updateWarningType(Number(req.params.id), req.body))
 }))
 
-router.delete('/types/:id', authenticate, requireManager, async (req: any, res: any) => {
+router.delete('/types/:id', authenticate, requireManager, tryCatch(async (req: any, res: any) => {
   res.success(await warningService.deleteWarningType(Number(req.params.id)))
-})
+}))
 
 // Restriction Levels
-router.get('/levels', authenticate, requireManager, async (req: any, res: any) => {
+router.get('/levels', authenticate, requireManager, tryCatch(async (req: any, res: any) => {
   res.success(await warningService.listLevels())
-})
+}))
 
 router.put('/levels/:id', authenticate, requireManager, tryCatch(async (req, res) => {
   res.success(await warningService.updateLevel(Number(req.params.id), req.body))
 }))
 
 // Credit Scores
-router.get('/credit-scores', authenticate, requireManager, async (req: any, res: any) => {
+router.get('/credit-scores', authenticate, requireManager, tryCatch(async (req: any, res: any) => {
   const result = await warningService.listCreditScores(parseInt(String(req.query.page)) || 1, parseInt(String(req.query.pageSize)))
   res.set('X-Total-Count', String(result.total))
   res.set('X-Total-Pages', String(result.pages))
   res.set('X-Page', String(result.page))
   res.set('X-Page-Size', String(result.pageSize))
   res.success(result.data)
-})
+}))
 
 // My Level
-router.get('/my-level', authenticate, async (req: any, res: any) => {
+router.get('/my-level', authenticate, tryCatch(async (req: any, res: any) => {
   res.success(await warningService.getMyLevel(req.user.id))
-})
+}))
 
 // Main warnings
-router.get('/', authenticate, requireManager, async (req: any, res: any) => {
+router.get('/', authenticate, requireManager, tryCatch(async (req: any, res: any) => {
   const result = await warningService.list(parseInt(String(req.query.page)) || 1, parseInt(String(req.query.pageSize)))
   res.set('X-Total-Count', String(result.total))
   res.set('X-Total-Pages', String(result.pages))
   res.set('X-Page', String(result.page))
   res.set('X-Page-Size', String(result.pageSize))
   res.success(result.data)
-})
+}))
 
-router.get('/my', authenticate, async (req: any, res: any) => {
+router.get('/my', authenticate, tryCatch(async (req: any, res: any) => {
   const result = await warningService.listMy(req.user.id, parseInt(String(req.query.page)) || 1, parseInt(String(req.query.pageSize)))
   res.set('X-Total-Count', String(result.total))
   res.set('X-Total-Pages', String(result.pages))
   res.set('X-Page', String(result.page))
   res.set('X-Page-Size', String(result.pageSize))
   res.success(result.data)
-})
+}))
 
 router.post('/', authenticate, requireManager, validate(createWarningSchema), tryCatch(async (req, res) => {
   const warning = await warningService.create(req.body, ctx(req))
@@ -106,9 +106,9 @@ router.put('/:id/sustain', authenticate, requireManager, tryCatch(async (req, re
   res.success(result)
 }))
 
-router.get('/freeze/status', authenticate, async (req: any, res: any) => {
+router.get('/freeze/status', authenticate, tryCatch(async (req: any, res: any) => {
   res.success(await warningService.getFreezeStatus(req.user.id))
-})
+}))
 
 router.put('/unfreeze/:userId', authenticate, requireManager, tryCatch(async (req, res) => {
   const result = await warningService.unfreeze(Number(req.params.userId), ctx(req))

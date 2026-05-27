@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import api from '../lib/api'
-import type { User, Role, Project } from '../types'
+import type { User, Role, Project, Comment } from '../types'
 
 interface AppState {
   users: User[]
@@ -18,8 +18,14 @@ interface AppState {
   updateUsers: (fn: (prev: User[]) => User[]) => void
   lastSubtaskUpdate: { id: number; status: string } | null
   lastListUpdate: { type: string; action: string; data: Record<string, unknown> } | null
+  lastNotification: unknown
+  lastComment: Comment | null
+  lastWinnerSelected: { commentId: number; subtaskId: number } | null
   pushSubtaskUpdate: (update: { id: number; status: string }) => void
   pushListUpdate: (update: { type: string; action: string; data: Record<string, unknown> }) => void
+  pushNotification: (notif: unknown) => void
+  pushComment: (comment: Comment) => void
+  setWinnerSelected: (data: { commentId: number; subtaskId: number }) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -61,6 +67,12 @@ export const useAppStore = create<AppState>((set) => ({
 
   lastSubtaskUpdate: null,
   lastListUpdate: null,
+  lastNotification: null,
+  lastComment: null,
+  lastWinnerSelected: null,
   pushSubtaskUpdate: (update) => set({ lastSubtaskUpdate: update }),
   pushListUpdate: (update) => set({ lastListUpdate: update }),
+  pushNotification: (notif) => set({ lastNotification: notif }),
+  pushComment: (comment) => set({ lastComment: comment }),
+  setWinnerSelected: (data) => set({ lastWinnerSelected: data }),
 }))

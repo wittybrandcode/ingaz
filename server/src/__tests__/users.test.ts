@@ -93,7 +93,7 @@ describe('UserService', () => {
     expect(user.id).toBeTruthy()
     expect(user.name).toBe('New User')
     expect(user.email).toBe('new@test.com')
-    expect(mockSetDefaultPrefs).toHaveBeenCalledWith(user.id)
+    expect(mockSetDefaultPrefs).toHaveBeenCalledWith(user.id, expect.anything())
   })
 
   it('create throws 409 for duplicate email', async () => {

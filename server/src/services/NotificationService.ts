@@ -240,7 +240,7 @@ export class NotificationService extends BaseService {
     relatedId?: number
   }, io?: any) {
     if (!await this.isEnabled(data.userId, data.type)) return null
-    await this.db.insert(schema.notifications).values({
+    const [notif] = await this.db.insert(schema.notifications).values({
       userId: data.userId,
       fromUserId: data.fromUserId ?? null,
       title: data.title,
@@ -248,11 +248,7 @@ export class NotificationService extends BaseService {
       type: data.type,
       relatedType: data.relatedType ?? null,
       relatedId: data.relatedId ?? null,
-    })
-    const [notif] = await this.db.select().from(schema.notifications)
-      .where(eq(schema.notifications.userId, data.userId))
-      .orderBy(sql`${schema.notifications.createdAt} DESC`)
-      .limit(1)
+    }).returning()
     if (notif && io) {
       try { io.to(`user:${data.userId}`).emit('notification', notif) } catch { /* socket send failed silently */ }
     }
@@ -268,14 +264,52 @@ export class NotificationService extends BaseService {
     relatedType?: string
     relatedId?: number
   }[], io?: any) {
-    const enabledItems: typeof items = []
+    if (items.length === 0) return []
+
+    const seen = new Set<string>()
+    const uniquePairs: { userId: number; typeKey: string }[] = []
     for (const item of items) {
-      if (await this.isEnabled(item.userId, item.type)) {
-        enabledItems.push(item)
+      const key = `${item.userId}:${item.type}`
+      if (!seen.has(key)) {
+        seen.add(key)
+        uniquePairs.push({ userId: item.userId, typeKey: item.type })
       }
     }
+
+    const pairsSql = sql.join(
+      uniquePairs.map(p => sql`(${p.userId}, ${p.typeKey})`),
+      sql`, `,
+    )
+    const prefs: any[] = await this.db
+      .select()
+      .from(schema.notificationPreferences)
+      .where(sql`(${schema.notificationPreferences.userId}, ${schema.notificationPreferences.notificationType}) IN (${pairsSql})`)
+
+    const prefMap = new Map<string, boolean>()
+    for (const p of prefs) {
+      prefMap.set(`${p.userId}:${p.notificationType}`, p.enabled === 1)
+    }
+
+    const missingTypeKeys = [...new Set(
+      uniquePairs
+        .filter(p => !prefMap.has(`${p.userId}:${p.typeKey}`))
+        .map(p => p.typeKey)
+    )]
+
+    const defaults: any[] = missingTypeKeys.length > 0 ? await this.db
+      .select({ typeKey: schema.notificationTypes.typeKey, defaultEnabled: schema.notificationTypes.defaultEnabled })
+      .from(schema.notificationTypes)
+      .where(inArray(schema.notificationTypes.typeKey, missingTypeKeys)) : []
+    const defaultMap = new Map(defaults.map((d: any) => [d.typeKey, d.defaultEnabled === 1]))
+
+    const enabledItems = items.filter(item => {
+      const cached = prefMap.get(`${item.userId}:${item.type}`)
+      if (cached !== undefined) return cached
+      return defaultMap.get(item.type) ?? true
+    })
+
     if (enabledItems.length === 0) return []
-    await this.db.insert(schema.notifications).values(
+    const notifs = await this.db.insert(schema.notifications).values(
       enabledItems.map(item => ({
         userId: item.userId,
         fromUserId: item.fromUserId ?? null,
@@ -285,10 +319,7 @@ export class NotificationService extends BaseService {
         relatedType: item.relatedType ?? null,
         relatedId: item.relatedId ?? null,
       }))
-    )
-    const notifs = await this.db.select().from(schema.notifications)
-      .orderBy(sql`${schema.notifications.createdAt} DESC`)
-      .limit(enabledItems.length)
+    ).returning()
     if (io) {
       for (let i = 0; i < notifs.length; i++) {
         try { io.to(`user:${notifs[i].userId}`).emit('notification', notifs[i]) } catch { /* socket send failed silently */ }

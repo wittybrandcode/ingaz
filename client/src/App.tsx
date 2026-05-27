@@ -4,6 +4,8 @@ import { useAuthStore } from './store/authStore'
 import { useEffect, lazy, Suspense } from 'react'
 import Layout from './components/Layout'
 import ErrorBoundary from './components/ErrorBoundary'
+import { ToastProvider } from './components/Toast'
+import { useSocketAuth } from './hooks/useSocketAuth'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -38,28 +40,31 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const { loadUser } = useAuthStore()
+  useSocketAuth()
 
   useEffect(() => { loadUser() }, [])
 
   return (
+    <ToastProvider>
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
         <Route path="/login" element={<ErrorBoundary><Login /></ErrorBoundary>} />
         <Route path="/frozen" element={<ErrorBoundary><FrozenAccount /></ErrorBoundary>} />
-        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+        <Route path="/" element={<ProtectedRoute><ErrorBoundary><Layout /></ErrorBoundary></ProtectedRoute>}>
           <Route index element={<Navigate to="/projects" replace />} />
-          <Route path="dashboard" element={<Dashboard />} />
-          <Route path="projects" element={<Projects />} />
-          <Route path="projects/:id" element={<ProjectDetail />} />
-          <Route path="subtasks/:id" element={<SubtaskPage />} />
-          <Route path="users" element={<AdminRoute><Users /></AdminRoute>} />
-          <Route path="roles" element={<AdminRoute><Roles /></AdminRoute>} />
-          <Route path="warnings" element={<AdminRoute><WarningsAdmin /></AdminRoute>} />
-          <Route path="warnings/manage" element={<AdminRoute><WarningManagement /></AdminRoute>} />
-          <Route path="notifications/preferences" element={<NotificationPreferences />} />
-          <Route path="profile" element={<Profile />} />
+          <Route path="dashboard" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+          <Route path="projects" element={<ErrorBoundary><Projects /></ErrorBoundary>} />
+          <Route path="projects/:id" element={<ErrorBoundary><ProjectDetail /></ErrorBoundary>} />
+          <Route path="subtasks/:id" element={<ErrorBoundary><SubtaskPage /></ErrorBoundary>} />
+          <Route path="users" element={<AdminRoute><ErrorBoundary><Users /></ErrorBoundary></AdminRoute>} />
+          <Route path="roles" element={<AdminRoute><ErrorBoundary><Roles /></ErrorBoundary></AdminRoute>} />
+          <Route path="warnings" element={<AdminRoute><ErrorBoundary><WarningsAdmin /></ErrorBoundary></AdminRoute>} />
+          <Route path="warnings/manage" element={<AdminRoute><ErrorBoundary><WarningManagement /></ErrorBoundary></AdminRoute>} />
+          <Route path="notifications/preferences" element={<ErrorBoundary><NotificationPreferences /></ErrorBoundary>} />
+          <Route path="profile" element={<ErrorBoundary><Profile /></ErrorBoundary>} />
         </Route>
       </Routes>
     </Suspense>
+    </ToastProvider>
   )
 }

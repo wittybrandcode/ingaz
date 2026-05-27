@@ -4,12 +4,12 @@ import crypto from 'crypto'
 import type { Request, Response, NextFunction } from 'express'
 import { eq, and, lte, gte, sql } from 'drizzle-orm'
 import { getDb, schema } from '../db/index.js'
-import { ROLES, TOKEN } from '../constants.js'
+import { TOKEN } from '../constants.js'
 
 const JWT_SECRET: string = process.env.JWT_SECRET!
 
 const tokenBlacklist = new Map<string, number>()
-const frozenCache = new Map<number, { frozen_at: string | null; expiry: number }>()
+const frozenCache = new Map<number, { isFrozen: boolean; expiry: number }>()
 const FROZEN_CACHE_TTL = 30000
 
 interface TokenUser {
@@ -175,7 +175,7 @@ export function clearFrozenCache(userId: number): void {
 export async function checkFrozen(req: Request, res: Response, next: NextFunction): Promise<void> {
   const cached = frozenCache.get(req.user.id)
   if (cached && Date.now() < cached.expiry) {
-    if (cached.frozen_at) { res.fail(403, 'الحساب مجمد'); return }
+    if (cached.isFrozen) { res.fail(403, 'الحساب مجمد'); return }
     next()
     return
   }
@@ -185,7 +185,7 @@ export async function checkFrozen(req: Request, res: Response, next: NextFunctio
     .where(eq(schema.users.id, req.user.id))
     .limit(1)
   const user = rows[0]
-  frozenCache.set(req.user.id, { frozen_at: user?.frozenAt ? new Date(user.frozenAt).toISOString() : null, expiry: Date.now() + FROZEN_CACHE_TTL })
+  frozenCache.set(req.user.id, { isFrozen: !!user?.frozenAt, expiry: Date.now() + FROZEN_CACHE_TTL })
   if (user?.frozenAt) {
     res.fail(403, 'الحساب مجمد')
     return

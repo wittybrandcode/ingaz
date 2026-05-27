@@ -5,10 +5,7 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { PAGINATION } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, getDb } from '../db/index.js'
-
-import { NotificationService } from './NotificationService.js'
-const notifService = new NotificationService(getDb())
+import { schema, addActivityLog } from '../db/index.js'
 import { camelToSnake } from '../lib/case-transform.js'
 
 export class ProjectService extends BaseService {
@@ -385,17 +382,17 @@ export class ProjectService extends BaseService {
       .innerJoin(schema.roles, eq(schema.users.roleId, schema.roles.id))
       .where(eq(schema.projectMembers.projectId, projectId))
       .orderBy(sql`${schema.projectMembers.createdAt} DESC`)
-    return camelToSnake(rows)
+    return rows
   }
 
-  async addMember(projectId: number, userId: number, ctx?: ServiceContext) {
+  async addMember(projectId: number, userId: number, ctx?: ServiceContext, role: string = 'member') {
     try {
       let enriched: any
       await this.db.transaction(async (tx: any) => {
         const [member] = await tx.insert(schema.projectMembers).values({
           projectId,
           userId,
-          role: 'manager',
+          role,
         }).returning()
 
         const [e] = await tx
@@ -435,7 +432,7 @@ export class ProjectService extends BaseService {
         }
       })
 
-      return camelToSnake(enriched)
+      return enriched
     } catch (e: any) {
       if (e.code === '23505') throw new AppError(409, 'المستخدم مضاف مسبقاً')
       throw e

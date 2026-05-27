@@ -1,13 +1,19 @@
 import { eq, and, sql } from 'drizzle-orm'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees, getDb } from '../db/index.js'
+import { schema, isProjectManager, isSubtaskAssignee, addActivityLog, getTaskAssignees } from '../db/index.js'
 import { parseMentions } from '../notify.js'
 import { camelToSnake } from '../lib/case-transform.js'
 import { NotificationService } from './NotificationService.js'
-const notifService = new NotificationService(getDb())
 
 export class CommentService extends BaseService {
+  private notifService: NotificationService
+
+  constructor(db: any, notifService?: NotificationService) {
+    super(db)
+    this.notifService = notifService || new NotificationService(db)
+  }
+
   async getBySubtask(subtaskId: number) {
     return this.db
       .select({
@@ -71,7 +77,7 @@ export class CommentService extends BaseService {
 
     if (subtask) {
       if (subtask.assignedTo && subtask.assignedTo !== ctx.userId) {
-        notifService.create({
+        this.notifService.create({
           userId: subtask.assignedTo,
           type: 'comment',
           title: `${ctx.userName} علّق على مهمتك`,
@@ -93,7 +99,7 @@ export class CommentService extends BaseService {
           relatedId: subtask.id,
         }))
       if (mentionItems.length > 0) {
-        notifService.createMany(mentionItems, ctx.io)
+        this.notifService.createMany(mentionItems, ctx.io)
       }
     }
 
@@ -235,7 +241,7 @@ export class CommentService extends BaseService {
           .select({ id: schema.users.id })
           .from(schema.users)
           .where(eq(schema.users.status, 'active'))
-        notifService.createMany(
+        this.notifService.createMany(
           allUsers.map((u: any) => ({
             userId: u.id,
             type: 'project_completed',
@@ -251,7 +257,7 @@ export class CommentService extends BaseService {
           .select({ id: schema.users.id })
           .from(schema.users)
           .where(eq(schema.users.status, 'active'))
-        notifService.createMany(
+        this.notifService.createMany(
           allUsers.map((u: any) => ({
             userId: u.id,
             type: 'task_completed',
@@ -273,7 +279,7 @@ export class CommentService extends BaseService {
       for (const p of allParticipants) {
         if (p.userId !== ctx.userId && !notifiedIds.has(p.userId)) {
           notifiedIds.add(p.userId)
-          notifService.create({
+          this.notifService.create({
             userId: p.userId,
             type: 'winner_selected',
             title: 'تم ترشيح تعليق فائز',

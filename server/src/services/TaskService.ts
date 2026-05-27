@@ -3,10 +3,7 @@ import { eq, and, count, sql, inArray } from 'drizzle-orm'
 import { PAGINATION, ROLES } from '../constants.js'
 import { BaseService, AppError } from './BaseService.js'
 import type { ServiceContext } from './BaseService.js'
-import { schema, addActivityLog, getDb, getTaskAssignees, isProjectManager } from '../db/index.js'
-
-import { NotificationService } from './NotificationService.js'
-const notifService = new NotificationService(getDb())
+import { schema, addActivityLog, getTaskAssignees, isProjectManager } from '../db/index.js'
 import { camelToSnake } from '../lib/case-transform.js'
 
 export class TaskService extends BaseService {

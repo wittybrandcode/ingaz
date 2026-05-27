@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, useCallback } from 'react'
+import { useState, createContext, useContext, useCallback, useEffect } from 'react'
 import { CheckCircle2, XCircle, AlertTriangle, X } from 'lucide-react'
 
 interface ToastItem {
@@ -13,15 +13,21 @@ const Ctx = createContext<ToastCtx>({ toast: () => {} })
 export const useToast = () => useContext(Ctx)
 
 let nextId = 0
+let _globalToast: ((message: string, type?: ToastItem['type']) => void) | null = null
+export function toast(message: string, type?: ToastItem['type']) {
+  if (_globalToast) _globalToast(message, type || 'success')
+}
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([])
 
-  const toast = useCallback((message: string, type: ToastItem['type'] = 'success') => {
+  const toaster = useCallback((message: string, type: ToastItem['type'] = 'error') => {
     const id = nextId++
     setItems(prev => [...prev, { id, message, type }])
     setTimeout(() => setItems(prev => prev.filter(i => i.id !== id)), 4000)
   }, [])
+
+  useEffect(() => { _globalToast = toaster; return () => { _globalToast = null } }, [toaster])
 
   const remove = (id: number) => setItems(prev => prev.filter(i => i.id !== id))
 
@@ -29,7 +35,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const colors = { success: 'border-green-200 bg-green-50', error: 'border-red-200 bg-red-50', warning: 'border-amber-200 bg-amber-50' }
 
   return (
-    <Ctx.Provider value={{ toast }}>
+    <Ctx.Provider value={{ toast: toaster }}>
       {children}
       <div className="fixed bottom-4 left-4 z-[100] flex flex-col gap-2">
         {items.map(i => (

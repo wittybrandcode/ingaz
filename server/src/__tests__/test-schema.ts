@@ -99,6 +99,7 @@ export const subtaskAssignees = sqliteTable('subtask_assignees', {
 export const notifications = sqliteTable('notifications', {
   id: integer('id').primaryKey(),
   userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  fromUserId: integer('from_user_id'),
   title: text('title').notNull(),
   message: text('message'),
   type: text('type').default('info'),
