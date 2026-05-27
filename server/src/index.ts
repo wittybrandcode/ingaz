@@ -47,7 +47,9 @@ const logger = pino({
   transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
 })
 
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173').split(',');
+const rawOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:5173'
+const ALLOWED_ORIGINS = rawOrigins === '*' ? ['*'] : rawOrigins.split(',').map(s => s.trim())
+const CORS_ORIGIN = ALLOWED_ORIGINS[0] === '*' ? true : ALLOWED_ORIGINS
 
 if (!process.env.JWT_SECRET) {
   logger.fatal('JWT_SECRET غير معرف. حدد المتغير البيئي JWT_SECRET للإقلاع.');
@@ -56,21 +58,21 @@ if (!process.env.JWT_SECRET) {
 
 if (!process.env.ALLOWED_ORIGINS) {
   logger.warn('ALLOWED_ORIGINS غير معرف. سيتم استخدام http://localhost:5173 كقيمة افتراضية.')
-}
-
-try {
-  const url = new URL(ALLOWED_ORIGINS[0])
-  logger.info({ origin: url.origin }, 'CORS origin configured')
-} catch {
-  logger.fatal({ origin: ALLOWED_ORIGINS[0] }, 'ALLOWED_ORIGINS غير صالح')
-  process.exit(1)
+} else if (ALLOWED_ORIGINS[0] !== '*') {
+  try {
+    const url = new URL(ALLOWED_ORIGINS[0])
+    logger.info({ origin: url.origin }, 'CORS origin configured')
+  } catch {
+    logger.fatal({ origin: ALLOWED_ORIGINS[0] }, 'ALLOWED_ORIGINS غير صالح')
+    process.exit(1)
+  }
 }
 
 const app = express();
 initSentry(app);
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
-  cors: { origin: ALLOWED_ORIGINS, methods: ['GET', 'POST'] }
+  cors: { origin: CORS_ORIGIN, methods: ['GET', 'POST'] }
 });
 
 app.set('io', io);
@@ -95,7 +97,7 @@ app.use(helmet({
   },
 }))
 
-app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));
+app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 app.use(requestId);
