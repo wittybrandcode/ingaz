@@ -5,7 +5,7 @@
 start.bat                          # Normal daily startup (kill old, start server+client)
 start.bat setup                    # One-time: migrate schema + seed, then start
 start.bat seed                     # Refresh permissions only (safe anytime)
-staging.bat                        # Full staging env via Docker (nginx + server + db)
+# staging.bat removed — Docker is optional. Use start.bat for normal development.
 cd server && npm run dev           # dev with tsx watch (auto-reloads on .ts changes)
 cd client && npm run dev           # Vite dev server (HMR)
 cd server && npm run test          # 152 tests (152 pass ✅)
