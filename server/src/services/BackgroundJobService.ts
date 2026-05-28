@@ -13,6 +13,15 @@ export class BackgroundJobService {
   private running = new Map<string, Promise<void>>()
   private timers = new Map<string, NodeJS.Timeout>()
   private started = false
+  private db: any
+
+  constructor(db?: any) {
+    this.db = db
+  }
+
+  private getDb(): any {
+    return this.db || getDb()
+  }
 
   register(job: JobDefinition) {
     this.jobs.set(job.type, job)
@@ -21,7 +30,7 @@ export class BackgroundJobService {
   async start() {
     if (this.started) return
     this.started = true
-    const db = getDb()
+    const db = this.getDb()
 
     // Rehydrate: catch up on missed runs since server was down
     for (const [, job] of this.jobs) {
@@ -45,7 +54,7 @@ export class BackgroundJobService {
 
   private async catchUp(job: JobDefinition) {
     try {
-      const db = getDb()
+      const db = this.getDb()
       const [record] = await db
         .select()
         .from(schema.backgroundJobs)
@@ -75,7 +84,7 @@ export class BackgroundJobService {
   private scheduleNext(job: JobDefinition) {
     const timer = setTimeout(async () => {
       try {
-        const db = getDb()
+        const db = this.getDb()
         const [record] = await db
           .select()
           .from(schema.backgroundJobs)
@@ -104,7 +113,7 @@ export class BackgroundJobService {
       return
     }
 
-    const db = getDb()
+    const db = this.getDb()
     const runPromise = (async () => {
       try {
         // Mark as running

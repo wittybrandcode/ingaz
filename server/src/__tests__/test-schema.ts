@@ -248,6 +248,20 @@ export const tokenBlacklist = sqliteTable('token_blacklist', {
   index('idx_token_blacklist_expires').on(table.expiresAt),
 ])
 
+export const backgroundJobs = sqliteTable('background_jobs', {
+  id: integer('id').primaryKey(),
+  jobType: text('job_type').notNull().unique(),
+  status: text('status').notNull().default('idle'),
+  lastRunAt: text('last_run_at'),
+  nextRunAt: text('next_run_at').notNull(),
+  intervalMs: integer('interval_ms').notNull(),
+  retryCount: integer('retry_count').default(0),
+  maxRetries: integer('max_retries').default(3),
+  lastError: text('last_error'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+})
+
 export const deadlineReminders = sqliteTable('deadline_reminders', {
   id: integer('id').primaryKey(),
   subtaskId: integer('subtask_id').references(() => subtasks.id, { onDelete: 'cascade' }),

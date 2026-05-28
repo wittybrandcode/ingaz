@@ -93,7 +93,7 @@ export function generateToken(user: { id: number; email: string; name: string; r
   )
 }
 
-const SCHEMA_SQL = `
+export const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS roles (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE NOT NULL);
   CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT UNIQUE NOT NULL, password TEXT NOT NULL, role_id INTEGER REFERENCES roles(id) ON DELETE SET NULL, is_manager INTEGER DEFAULT 0, avatar TEXT, status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'archived')), credit_score INTEGER DEFAULT 10, frozen_at DATETIME, freeze_reason TEXT, unfrozen_at DATETIME, last_credit_recovery DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT, created_by INTEGER REFERENCES users(id), status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'archived')), created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
@@ -115,6 +115,7 @@ const SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS notification_types (id INTEGER PRIMARY KEY AUTOINCREMENT, type_key TEXT UNIQUE NOT NULL, type_group TEXT NOT NULL, name TEXT NOT NULL, description TEXT, default_enabled INTEGER DEFAULT 1);
   CREATE TABLE IF NOT EXISTS token_blacklist (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE TABLE IF NOT EXISTS deadline_reminders (id INTEGER PRIMARY KEY AUTOINCREMENT, subtask_id INTEGER REFERENCES subtasks(id) ON DELETE CASCADE, reminder_type TEXT NOT NULL CHECK(reminder_type IN ('24h', '6h', 'overdue')), sent INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, UNIQUE(subtask_id, reminder_type));
+  CREATE TABLE IF NOT EXISTS background_jobs (id INTEGER PRIMARY KEY AUTOINCREMENT, job_type TEXT UNIQUE NOT NULL, status TEXT NOT NULL DEFAULT 'idle', last_run_at DATETIME, next_run_at DATETIME NOT NULL, interval_ms INTEGER NOT NULL, retry_count INTEGER DEFAULT 0, max_retries INTEGER DEFAULT 3, last_error TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP);
   CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
   CREATE INDEX IF NOT EXISTS idx_subtasks_task ON subtasks(task_id);
   CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
@@ -137,6 +138,8 @@ const SCHEMA_SQL = `
   CREATE INDEX IF NOT EXISTS idx_subtask_assignees_subtask ON subtask_assignees(subtask_id);
   CREATE INDEX IF NOT EXISTS idx_subtask_assignees_user ON subtask_assignees(user_id);
   CREATE INDEX IF NOT EXISTS idx_notif_prefs_user ON notification_preferences(user_id);
+  CREATE INDEX IF NOT EXISTS idx_bg_jobs_status ON background_jobs(status);
+  CREATE INDEX IF NOT EXISTS idx_bg_jobs_next_run ON background_jobs(next_run_at);
 `
 
 export function createTestDb() {

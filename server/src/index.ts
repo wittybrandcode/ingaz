@@ -180,7 +180,7 @@ io.use(async (socket, next) => {
 // onlineUsers is imported from ./lib/onlineUsers.js
 
 io.on('connection', (socket) => {
-  console.log('Client connected:', socket.id, 'User:', socket.data.user?.id);
+  logger.info({ socketId: socket.id, userId: socket.data.user?.id }, 'Client connected');
   const uid = socket.data.user?.id;
   if (uid) {
     onlineUsers.add(uid)
@@ -206,7 +206,7 @@ io.on('connection', (socket) => {
     }
   });
   socket.on('disconnect', () => {
-    console.log('Client disconnected:', socket.id);
+    logger.info({ socketId: socket.id }, 'Client disconnected');
     if (uid) {
       onlineUsers.delete(uid)
       socket.broadcast.emit('user:offline', uid);
@@ -358,7 +358,7 @@ bgService.register({ type: 'sendDailySummaries', intervalMs: 12 * 3600000, execu
 
 runMigrations().then(() => {
   httpServer.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    logger.info({ port: PORT }, `Server running on http://localhost:${PORT}`);
     bgService.start();
   });
 });

@@ -5,13 +5,16 @@
 start.bat                          # Normal daily startup (kill old, start server+client)
 start.bat setup                    # One-time: migrate schema + seed, then start
 start.bat seed                     # Refresh permissions only (safe anytime)
+staging.bat                        # Full staging env via Docker (nginx + server + db)
 cd server && npm run dev           # dev with tsx watch (auto-reloads on .ts changes)
 cd client && npm run dev           # Vite dev server (HMR)
-cd server && npm run test          # 95 tests (95 pass ✅)
+cd server && npm run test          # 152 tests (152 pass ✅)
 cd server && npm run typecheck     # 0 errors
+cd client && npm run test          # 67 tests (11 files, 67 pass ✅)
 cd client && npm run typecheck     # 0 errors
-cd server && npm run lint          # 0 errors, 460 warnings (all no-explicit-any + unused-vars)
-cd client && npm run lint          # 0 errors, 27 warnings
+cd server && npm run lint          # 0 errors, 511 warnings (all no-explicit-any)
+cd client && npm run lint          # 0 errors, 34 warnings
+cd client && npm run build         # Vite production build (dist/)
 ```
 
 ## Test accounts
@@ -26,12 +29,17 @@ cd client && npm run lint          # 0 errors, 27 warnings
 ```
 Bigg/
 ├── client/          # React + Vite (port 5173) — 12 pages, 38 components, 6 stores
+│   ├── Dockerfile   # Build + nginx (multi-stage)
+│   └── nginx.conf   # Nginx config for production/staging
 ├── server/          # Express + PostgreSQL (port 3001) — 13 routes, 15 services, 8 middleware
+│   └── Dockerfile   # Node 22-alpine with tsx
 ├── shared/          # types.ts — 16 interfaces
 ├── uploads/         # uploaded files (served statically)
 ├── docs/            # ROADMAP.md + archived plans + system design reference
 ├── .opencode/       # 5 agents, 5 skills, 1 plan system
-└── start.bat
+├── docker-compose.yml  # Full stack: db + server + client (nginx)
+├── start.bat           # Dev startup (kill old, start server+client)
+└── staging.bat         # Staging startup (Docker Compose)
 ```
 
 ### Entrypoints
@@ -115,15 +123,23 @@ Proxies `/api`, `/socket.io`, `/uploads` → `http://localhost:3001`
 - `erasableSyntaxOnly: true` — no `public`/`private`/`protected` on constructor params
 - `verbatimModuleSyntax: true` — requires `.js` in relative imports
 - **`@types/express@4` with `express@4`** (resolved Phase 6)
+- **H17 ✅**: 67 client tests across 11 files (Avatar, Skeleton, ProgressBar, StatsPill, Toast, ErrorBoundary, TaskCard, ProjectCard, sanitize, appStore)
 
 ## Test Infrastructure
+### Server
 - **Vitest** with `globals: true`, `environment: node`
 - Uses **SQLite** (better-sqlite3) in-memory — NOT PostgreSQL
 - Dual schema maintenance: `schema.ts` (production), `test-schema.ts` (test), `SCHEMA_SQL` (helpers.ts) — all 3 must stay in sync
 - Tests that mock `../db/index.js` (auth, projects, tasks, users, warnings, middleware) pass ✅
 - Tests that DON'T mock `../db/index.js` (notifications, deadlines) pass ✅ (Phase 2: schema drift fixed + RETURNING clause)
 - `better-sqlite3` is in `devDependencies` (moved from deps in Phase 6)
-- 6 of 15 services have zero tests: AnalyticsService, BackgroundJobService, CommentService, MemberService, RoleService, UploadService
+- 1 of 15 services has zero tests: BackgroundJobService (needs `background_jobs` table in test schema + timer mocks)
+
+### Client
+- **Vitest** with `globals: true`, `environment: jsdom`
+- **Setup file**: `src/__tests__/setup.ts` (imports `@testing-library/jest-dom/vitest`)
+- **Dependencies**: `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `jsdom`
+- 11 test files, 67 tests ✅
 
 ## Client Architecture
 - **State management:** Zustand (6 stores: auth, app, member, project, task, subtask)
@@ -134,9 +150,9 @@ Proxies `/api`, `/socket.io`, `/uploads` → `http://localhost:3001`
 - **Centralized error toast** in api.ts interceptor via global toast() ✅
 - **Socket event handling** centralized in `lib/eventBus.ts` with React hooks ✅
 
-## ✅ الإنجاز — Completed (Phases 1–7)
+## ✅ الإنجاز — Completed (Phases 1–7 + H17)
 
-All 93 issues from ANALYSIS-REPORT.md have been resolved across 7 phases (10 critical + 18 high + 65 medium/low). Remaining tasks consolidated into one file below.
+All 93 issues from ANALYSIS-REPORT.md have been resolved across 7 phases (10 critical + 18 high + 65 medium/low). H17 (client component tests) completed with 67 tests across 11 files. Remaining tasks consolidated into one file below.
 
 ## Relevant Files
 
@@ -150,11 +166,12 @@ All 93 issues from ANALYSIS-REPORT.md have been resolved across 7 phases (10 cri
 - `services/*.ts` — 15 service files, all extend BaseService
 - `lib/case-transform.ts` — `camelToSnake` (recursive, handles Date/RegExp/Array)
 - `lib/onlineUsers.ts` — in-memory `Set<number>` (doesn't scale horizontally)
-- `__tests__/` — 10 test files, 8 test suites (95 tests ✅)
+- `__tests__/` — 13 test files, 13 test suites (143 tests ✅)
 - `__tests__/helpers.ts` — test factory functions (seedUser, seedProject, generateToken)
 - `__tests__/test-schema.ts` — ✅ in sync with production schema (Phase 2)
 
-### Client (65+ source files)
+### Client (65+ source files, 11 test files)
+- `src/__tests__/` — 11 test files, 67 tests ✅ (vitest + jsdom + @testing-library/react)
 - `main.tsx` → `App.tsx` — routing with lazy-loaded pages
 - `lib/api.ts` — Axios instance, auto-unwraps `{ success, data }`
 - `lib/socket.ts` — Socket.IO singleton (✅ subscription leak fixed via `hooks/useSocketAuth.ts`)
