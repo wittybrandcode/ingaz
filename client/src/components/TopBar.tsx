@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
-  LayoutDashboard, FolderKanban, Users, Shield, AlertTriangle,
-  Settings, LogOut, UserCircle, Menu, X, Wifi, WifiOff
+  LayoutDashboard, Settings, LogOut, UserCircle, Menu, X, Wifi, WifiOff
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { useMemberStore } from '../store/memberStore'
@@ -10,15 +9,7 @@ import { useFocusTrap } from '../lib/useFocusTrap'
 import socket from '../lib/socket'
 import NotificationBell from './NotificationBell'
 import Avatar from './Avatar'
-
-const navItems: { path: string; label: string; icon: any; adminOnly?: boolean }[] = [
-  { path: '/projects', label: 'مساحة العمل', icon: FolderKanban },
-  { path: '/dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
-  { path: '/warnings', label: 'الإنذارات', icon: AlertTriangle, adminOnly: true },
-  { path: '/users', label: 'المستخدمين', icon: Users, adminOnly: true },
-  { path: '/roles', label: 'الأدوار', icon: Shield, adminOnly: true },
-  { path: '/profile', label: 'الملف', icon: UserCircle },
-]
+import HorizontalNav, { navItems } from './HorizontalNav'
 
 export default function TopBar() {
   const user = useAuthStore(s => s.user)
@@ -89,33 +80,7 @@ export default function TopBar() {
           <img src="/logo-icon.svg" alt="إنجاز" className="h-6" />
           <span className="text-white font-extrabold text-lg hidden sm:inline">إنجـــاز</span>
         </button>
-        <nav className="hidden md:flex gap-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {navItems.filter(i => !i.adminOnly || user?.is_manager).map(item => {
-            const active = isActive(item.path)
-            return (
-              <button key={item.path} onClick={() => navigate(item.path)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-none cursor-pointer whitespace-nowrap transition-all shrink-0"
-                style={{
-                  background: active ? '#4A90D9' : 'rgba(255,255,255,0.06)',
-                  color: active ? '#fff' : 'rgba(255,255,255,0.65)',
-                }}>
-                <item.icon className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-          {user?.is_manager && (
-            <button onClick={() => navigate('/warnings/manage')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-none cursor-pointer whitespace-nowrap transition-all shrink-0"
-              style={{
-                background: isActive('/warnings/manage') ? '#4A90D9' : 'rgba(255,255,255,0.06)',
-                color: isActive('/warnings/manage') ? '#fff' : 'rgba(255,255,255,0.65)',
-              }}>
-              <Settings className="w-3.5 h-3.5" />
-              <span>الرصيد</span>
-            </button>
-          )}
-        </nav>
+        <HorizontalNav />
       </div>
 
       <div className="flex items-center gap-3 shrink-0">
