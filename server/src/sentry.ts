@@ -1,10 +1,16 @@
 import * as Sentry from '@sentry/node'
 import type { Express } from 'express'
+import pino from 'pino'
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
+})
 
 export function initSentry(app: Express) {
   const dsn = process.env.SENTRY_DSN
   if (!dsn) {
-    console.warn('SENTRY_DSN غير معرف. سيتم تخطي تهيئة Sentry.')
+    logger.warn('SENTRY_DSN غير معرف. سيتم تخطي تهيئة Sentry.')
     return
   }
 
@@ -16,7 +22,7 @@ export function initSentry(app: Express) {
 
   Sentry.setupExpressErrorHandler(app)
 
-  console.log('Sentry initialized')
+  logger.info('Sentry initialized')
 }
 
 export { Sentry }

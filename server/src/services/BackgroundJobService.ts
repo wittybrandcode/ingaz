@@ -1,6 +1,12 @@
 import { eq, lt, lte, sql } from 'drizzle-orm'
 import { getDb } from '../db/index.js'
 import * as schema from '../db/schema.js'
+import pino from 'pino'
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: process.env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
+})
 
 interface JobDefinition {
   type: string
@@ -77,7 +83,7 @@ export class BackgroundJobService {
         await this.runJob(job, record.id)
       }
     } catch (e) {
-      console.error(`[BackgroundJob] catchUp error for ${job.type}:`, e)
+      logger.error({ jobType: job.type, error: e }, '[BackgroundJob] catchUp error')
     }
   }
 
@@ -95,7 +101,7 @@ export class BackgroundJobService {
           await this.runJob(job, record.id)
         }
       } catch (e) {
-        console.error(`[BackgroundJob] run error for ${job.type}:`, e)
+        logger.error({ jobType: job.type, error: e }, '[BackgroundJob] run error')
       }
 
       // Schedule next run
@@ -141,7 +147,7 @@ export class BackgroundJobService {
           })
           .where(eq(schema.backgroundJobs.id, jobId))
       } catch (e: any) {
-        console.error(`[BackgroundJob] ${job.type} failed:`, e)
+        logger.error({ jobType: job.type, error: e }, '[BackgroundJob] failed')
 
         const [record] = await db
           .select({ retryCount: schema.backgroundJobs.retryCount })
